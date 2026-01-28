@@ -1,3 +1,5 @@
+import {i18nUtils} from "@ticatec/i18n";
+
 const langRes = {
     batchUploading: {
         status: {
@@ -25,4 +27,6 @@ const langRes = {
     }
 }
 
-export default langRes;
+const i18nRes = i18nUtils.createResourceProxy(langRes, 'omni');
+
+export default i18nRes;

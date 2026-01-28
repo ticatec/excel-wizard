@@ -1,6 +1,6 @@
 {
   "name": "@ticatec/batch-data-uploader",
-  "version": "0.0.8",
+  "version": "0.1.0",
   "description": "A reusable Svelte component for batch uploading Excel data with support for error handling, multi-language, and preprocessing.",
   "scripts": {
     "dev": "vite dev",
@@ -47,19 +47,19 @@
       "types": "./dist/BaseUploadTemplate.d.ts",
       "import": "./dist/BaseUploadTemplate.js"
     },
-    "./BaseEncodingTemplate.ts": {
-      "types": "./dist/BaseEncodingTemplate.ts.d.ts",
-      "import": "./dist/BaseEncodingTemplate.ts.js"
+    "./BaseEncodingTemplate": {
+      "types": "./dist/BaseEncodingTemplate.d.ts",
+      "import": "./dist/BaseEncodingTemplate.js"
     },
     "./DataColumn": {
       "types": "./dist/DataColumn.d.ts",
       "import": "./dist/DataColumn.js"
     },
-    "./FileUploadWizard.svelte": {
+    "./FileUploadWizard": {
       "types": "./dist/FileUploadWizard.svelte.d.ts",
       "import": "./dist/FileUploadWizard.svelte"
     },
-    "./EncodingWizard.svelte.svelte": {
+    "./EncodingWizard": {
       "types": "./dist/EncodingWizard.svelte.d.ts",
       "import": "./dist/EncodingWizard.svelte"
     }
@@ -73,8 +73,8 @@
     "@sveltejs/kit": "^2.0.0",
     "@sveltejs/package": "^2.0.0",
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
-    "@ticatec/i18n": "^0.0.8",
-    "@ticatec/uniface-element": "^0.1.52",
+    "@ticatec/i18n": "^0.2.0",
+    "@ticatec/uniface-element": "^0.2.0",
     "@ticatec/uniface-google-material-icons": "^0.1.2",
     "dayjs": "^1.11.10",
     "publint": "^0.3.2",

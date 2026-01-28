@@ -2,12 +2,12 @@
     import Dialog from "@ticatec/uniface-element/Dialog";
     import type {ButtonAction, ButtonActions} from "@ticatec/uniface-element/ActionBar";
     import DataTable, {type IndicatorColumn} from "@ticatec/uniface-element/DataTable";
-    import {getI18nText} from "@ticatec/i18n";
     import Box from "@ticatec/uniface-element/Box"
     import {onMount} from "svelte";
     import type DataColumn from "./DataColumn";
-    import i18nKeys from "$lib/i18n_resources/i18nKeys";
     import type BaseEncodingTemplate from "$lib/BaseEncodingTemplate";
+    import i18nRes from "$lib/i18n_resources/i18nRes";
+    import {i18nUtils} from "@ticatec/i18n";
 
     export let title: string;
     export let width: string = "800px";
@@ -18,7 +18,7 @@
 
 
     const btnChoose: ButtonAction = {
-        label: getI18nText(i18nKeys.button.open),
+        label: i18nRes.button.open,
         type: 'primary',
         handler: () => {
             uploadField.value = '';
@@ -27,10 +27,10 @@
     }
 
     const btnConfirm: ButtonAction = {
-        label: getI18nText(i18nKeys.button.confirm),
+        label: i18nRes.button.confirm,
         type: 'primary',
         handler: ()=> {
-            confirmCallback?.(template.list);
+            confirmCallback?.(template.dataList);
             closeHandler?.();
         }
     }
@@ -43,7 +43,7 @@
     const parseExcelFile = async (excelFile: File) => {
         if (excelFile) {
             filename = excelFile.name;
-            window.Indicator.show(getI18nText(i18nKeys.parsing));
+            window.Indicator.show(i18nRes.parsing);
             try {
                 await template.parseExcelFile(excelFile);
                 list = template.list;
@@ -51,7 +51,8 @@
                     actions = [btnConfirm, ...actions]
                 }
             } catch (ex) {
-                window.Toast.show(getI18nText(i18nKeys.parseFailure, {name: excelFile.name}));
+                console.error(ex);
+                window.Toast.show(i18nUtils.formatText(i18nRes.parseFailure, {name: excelFile.name}));
             } finally {
                 window.Indicator.hide();
             }

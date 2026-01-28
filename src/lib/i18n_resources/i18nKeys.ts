@@ -23,6 +23,10 @@ const i18nKeys = {
         key: 'batchUploading.labelValid',
         text: langRes.batchUploading.labelValid
     },
+    labelHint: {
+        key: 'batchUploading.labelValid',
+        text: langRes.batchUploading.labelHint
+    },
     labelStatus: {
         key: 'batchUploading.labelStatus',
         text: langRes.batchUploading.labelStatus

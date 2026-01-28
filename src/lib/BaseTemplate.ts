@@ -34,28 +34,84 @@ export default abstract class BaseTemplate {
      * @param file
      */
     async parseExcelFile(file: File): Promise<void> {
-        const buffer = await file.arrayBuffer();
-        const workbook = XLSX.read(buffer, {type: 'array'});
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const range = XLSX.utils.decode_range(sheet['!ref'] || ''); // 获取范围
+        try {
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(buffer, {type: 'array'});
 
-        const rows: any[] = [];
-
-        for (let rowIndex = range.s.r + this.rowOffset; rowIndex <= range.e.r; rowIndex++) {
-            const rowObject: any = {};
-
-            for (let i=0; i<this._columns.length; i++) {
-                const colDef = this._columns[i];
-                const cellAddress = {r: rowIndex, c: i};
-                const cellRef = XLSX.utils.encode_cell(cellAddress);
-                const cell = sheet[cellRef];
-                const rawValue = cell?.v;
-                const formattedValue = colDef.parser ? colDef.parser(rawValue) : rawValue;
-                utils.setNestedValue(rowObject, colDef.field, formattedValue);
+            // 验证工作簿是否有工作表
+            if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+                throw new Error('Excel file contains no worksheets');
             }
-            rows.push(this.wrapData(rowObject));
+
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+            // 验证工作表是否存在且有数据
+            if (!sheet || !sheet['!ref']) {
+                throw new Error('Worksheet is empty or invalid');
+            }
+
+            const range = XLSX.utils.decode_range(sheet['!ref']); // 获取范围
+
+            // 验证是否有足够的行数
+            if (range.e.r < this.rowOffset) {
+                throw new Error(`Not enough rows in file. Expected at least ${this.rowOffset + 1} rows`);
+            }
+
+            const rows: any[] = [];
+
+            for (let rowIndex = range.s.r + this.rowOffset; rowIndex <= range.e.r; rowIndex++) {
+                const rowObject: any = {};
+                let dummyCount = 0;
+                let hasData = false;
+
+                for (let i = 0; i < this._columns.length; i++) {
+                    const colDef = this._columns[i];
+                    if (colDef.dummy) {
+                        dummyCount++;
+                    } else {
+                        // 确保列索引不会为负数
+                        const actualColIndex = i - dummyCount;
+                        if (actualColIndex < 0) {
+                            console.warn(`Invalid column index for ${colDef.field}: ${actualColIndex}`);
+                            continue;
+                        }
+
+                        const cellAddress = {r: rowIndex, c: actualColIndex};
+                        const cellRef = XLSX.utils.encode_cell(cellAddress);
+                        const cell = sheet[cellRef];
+                        const rawValue = cell?.v;
+
+                        // 检查是否有实际数据
+                        if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
+                            hasData = true;
+                        }
+
+                        try {
+                            const formattedValue = colDef.parser ? colDef.parser(rawValue) : rawValue;
+                            utils.setNestedValue(rowObject, colDef.field, formattedValue);
+                        } catch (parseError) {
+                            console.warn(`Failed to parse cell ${cellRef}:`, parseError);
+                            utils.setNestedValue(rowObject, colDef.field, rawValue);
+                        }
+                    }
+                }
+
+                // 只添加有数据的行
+                if (hasData) {
+                    rows.push(this.wrapData(rowObject));
+                }
+            }
+
+            if (rows.length === 0) {
+                throw new Error('No valid data rows found in the file');
+            }
+
+            this._list = await this.consolidateData(rows);
+
+        } catch (error) {
+            console.error('Failed to parse Excel file:', error);
+            throw new Error(`Failed to parse Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
-        this._list = await this.consolidateData(rows);
     }
 
     /**
@@ -63,11 +119,13 @@ export default abstract class BaseTemplate {
      * @param arr
      */
     protected extractData(arr: Array<any>) {
-        let list= arr.map(item => {
-            let result : any = {};
+        let list = arr.map(item => {
+            let result: any = {};
             for (let col of this._columns) {
-                if (col.visible != false && col.ignore != false) {
-                    utils.setNestedValue(result, col.field, utils.getNestedValue(item.data, col.field));
+                // 修复逻辑错误：ignore应该为true时才忽略，visible为false时才隐藏
+                if (col.visible != false && col.ignore != true && !col.dummy) {
+                    let data = item.data;
+                    utils.setNestedValue(result, col.field, utils.getNestedValue(data, col.field));
                 }
             }
             return result;
@@ -81,14 +139,16 @@ export default abstract class BaseTemplate {
      * @protected
      */
     protected wrapData(data: any): any {
-        return data;
+        return {data};
     }
 
     /**
      * 获取表格的列定义
      */
     get columns(): Array<TableColumn> {
-        return this._columns.map(col=> ({...col}));
+        return this._columns
+            .filter(col => col.visible !== false)
+            .map(col => ({...col, field: `data.${col.field}`}));
     }
 
     /**
@@ -98,5 +158,10 @@ export default abstract class BaseTemplate {
         return [...this._list];
     }
 
-
+    /**
+     * 获取实际的数据列表
+     */
+    get dataList(): Array<any> {
+        return this._list.map(row => row.data);
+    }
 }

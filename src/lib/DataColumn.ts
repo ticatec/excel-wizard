@@ -17,6 +17,11 @@ export default interface DataColumn extends TableColumn {
     /**
      * 解析函数
      */
-    parser?: ParserText
+    parser?: ParserText;
+
+    /**
+     * 伪列，不解析，仅用于回显
+     */
+    dummy?: boolean;
 
 }
