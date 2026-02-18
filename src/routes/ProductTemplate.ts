@@ -1,4 +1,4 @@
-import BaseEncodingTemplate from "$lib/BaseEncodingTemplate";
+import BaseEncodingTemplate, { type ValidationResult } from "$lib/BaseEncodingTemplate";
 import type DataColumn from "$lib/DataColumn";
 
 let columns: Array<DataColumn> = [
@@ -61,6 +61,9 @@ let columns: Array<DataColumn> = [
 ]
 
 export default class ProductTemplate extends BaseEncodingTemplate {
+    protected validateData(row: any): ValidationResult | Promise<ValidationResult> {
+        throw new Error("Method not implemented.");
+    }
 
     constructor() {
         super(columns);

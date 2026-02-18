@@ -1,11 +1,10 @@
 // 改进的BaseUploadTemplate.ts - 完全清理元数据相关代码
 import BaseTemplate from "$lib/BaseTemplate";
 import type {DataColumn as TableColumn} from "@ticatec/uniface-element/DataTable";
-import i18nKeys from "$lib/i18n_resources/i18nKeys";
 import type DataColumn from "$lib/DataColumn";
 import utils from "$lib/utils";
 import * as XLSX from 'xlsx';
-import i18nRes from "$lib/i18n_resources/i18nRes";
+import i18nRes from "$lib/i18n_res/i18nRes";
 
 export type UploadFun = (arr: Array<any>) => Promise<Array<any>>;
 export type UpdateProgressStatus = () => void;

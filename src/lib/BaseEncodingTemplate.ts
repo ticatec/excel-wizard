@@ -2,7 +2,7 @@
 import BaseTemplate from "$lib/BaseTemplate";
 import type DataColumn from "$lib/DataColumn";
 import type {DataColumn as TableColumn} from "@ticatec/uniface-element/DataTable";
-import i18nRes from "$lib/i18n_resources/i18nRes";
+import i18nRes from "$lib/i18n_res";
 
 const ValidData = `<span style="color: #76FF03">${i18nRes.textValid}</span>`;
 const InvalidData = `<span style="color: #ff3e00">${i18nRes.textInvalid.key}</span>`;

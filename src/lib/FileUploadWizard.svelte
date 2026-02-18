@@ -7,7 +7,7 @@
     import {onMount} from "svelte";
     import type DataColumn from "./DataColumn";
     import type BaseUploadTemplate from "$lib/BaseUploadTemplate.js";
-    import i18nRes from "$lib/i18n_resources/i18nRes";
+    import i18nRes from "$lib/i18n_res/i18nRes";
     import {i18nUtils} from "@ticatec/i18n";
 
     export let title: string;
