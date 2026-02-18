@@ -5,19 +5,20 @@ import utils from "./utils";
 
 export default abstract class BaseTemplate {
 
-    protected readonly _columns: Array<DataColumn>;
-    protected readonly rowOffset: number;
     protected _list: Array<any> = [];
 
     /**
      *
-     * @param columns
-     * @param rowOffset
      * @protected
      */
-    protected constructor(columns: Array<DataColumn>, rowOffset: number = 1) {
-        this._columns = columns;
-        this.rowOffset = rowOffset;
+    protected constructor() {
+
+    }
+
+    protected abstract getMetaColumns(): Array<DataColumn>;
+
+    protected getRowOffset(): number {
+        return 1
     }
 
     /**
@@ -34,6 +35,8 @@ export default abstract class BaseTemplate {
      * @param file
      */
     async parseExcelFile(file: File): Promise<void> {
+        const columns = this.getMetaColumns();
+        const rowOffset = this.getRowOffset();
         try {
             const buffer = await file.arrayBuffer();
             const workbook = XLSX.read(buffer, {type: 'array'});
@@ -53,19 +56,19 @@ export default abstract class BaseTemplate {
             const range = XLSX.utils.decode_range(sheet['!ref']); // 获取范围
 
             // 验证是否有足够的行数
-            if (range.e.r < this.rowOffset) {
-                throw new Error(`Not enough rows in file. Expected at least ${this.rowOffset + 1} rows`);
+            if (range.e.r < rowOffset) {
+                throw new Error(`Not enough rows in file. Expected at least ${rowOffset + 1} rows`);
             }
 
             const rows: any[] = [];
 
-            for (let rowIndex = range.s.r + this.rowOffset; rowIndex <= range.e.r; rowIndex++) {
+            for (let rowIndex = range.s.r + rowOffset; rowIndex <= range.e.r; rowIndex++) {
                 const rowObject: any = {};
                 let dummyCount = 0;
                 let hasData = false;
 
-                for (let i = 0; i < this._columns.length; i++) {
-                    const colDef = this._columns[i];
+                for (let i = 0; i < columns.length; i++) {
+                    const colDef = columns[i];
                     if (colDef.dummy) {
                         dummyCount++;
                     } else {
@@ -121,7 +124,7 @@ export default abstract class BaseTemplate {
     protected extractData(arr: Array<any>) {
         let list = arr.map(item => {
             let result: any = {};
-            for (let col of this._columns) {
+            for (let col of this.getMetaColumns()) {
                 // 修复逻辑错误：ignore应该为true时才忽略，visible为false时才隐藏
                 if (col.visible != false && col.ignore != true && !col.dummy) {
                     let data = item.data;
@@ -146,7 +149,7 @@ export default abstract class BaseTemplate {
      * 获取表格的列定义
      */
     get columns(): Array<TableColumn> {
-        return this._columns
+        return this.getMetaColumns()
             .filter(col => col.visible !== false)
             .map(col => ({...col, field: `data.${col.field}`}));
     }

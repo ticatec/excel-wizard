@@ -83,8 +83,12 @@ export default class EmployeesTemplate extends BaseUploadTemplate {
 
     }
 
-    constructor(batchSize: number = 50, rowOffset: number = 1) {
-        super(columns, batchSize, rowOffset);
+    protected getMetaColumns(): Array<DataColumn> {
+        return columns;
+    }
+
+    constructor(batchSize: number = 50) {
+        super(batchSize);
     }
 
 }

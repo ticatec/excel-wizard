@@ -47,8 +47,8 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
     protected updateProgressStatus: UpdateProgressStatus | null = null;
     private _uploadAborted: boolean = false;
 
-    protected constructor(columns: Array<DataColumn>, batchSize: number = 50, rowOffset: number = 1) {
-        super(columns, rowOffset);
+    protected constructor(batchSize: number = 50) {
+        super();
         this.batchSize = Math.max(1, batchSize);
     }
 
@@ -263,7 +263,7 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
         }
 
         // 获取可见且非虚拟的列
-        const exportColumns = this._columns.filter(col =>
+        const exportColumns = this.getMetaColumns().filter(col =>
             col.visible !== false && !col.dummy && !col.ignore
         );
 
@@ -302,7 +302,7 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
 
         if (errorRows.length === 0) return;
 
-        const visibleColumns = this._columns.filter(col => col.visible !== false && !col.dummy);
+        const visibleColumns = this.getMetaColumns().filter(col => col.visible !== false && !col.dummy);
         const headers = [
             '行号',
             ...visibleColumns.map(col => col.text || col.field),
