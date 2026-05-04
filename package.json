@@ -1,24 +1,32 @@
 {
-  "name": "@ticatec/batch-data-uploader",
-  "version": "0.1.0",
-  "description": "A reusable Svelte component for batch uploading Excel data with support for error handling, multi-language, and preprocessing.",
+  "name": "@ticatec/excel-wizard",
+  "version": "0.2.0",
+  "description": "A schema-driven Svelte component library for Excel batch data processing with wizard-style interfaces, supporting validation, encoding, and template generation.",
   "scripts": {
     "dev": "vite dev",
     "build": "svelte-kit sync && svelte-package",
     "package": "svelte-kit sync && svelte-package && publint",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "preview": "vite preview",
     "publish:public": "npm run build && npm publish --access public"
   },
   "keywords": [
     "excel",
-    "upload",
+    "xlsx",
     "svelte",
     "component",
     "batch",
-    "uploader",
-    "xlsx",
-    "i18n"
+    "upload",
+    "schema",
+    "wizard",
+    "data-processing",
+    "validation",
+    "template",
+    "dropdown",
+    "exceljs",
+    "i18n",
+    "import-export"
   ],
   "files": [
     "dist",
@@ -37,7 +45,8 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "svelte": "./dist/index.js"
     },
     "./BaseTemplate": {
       "types": "./dist/BaseTemplate.d.ts",
@@ -51,17 +60,41 @@
       "types": "./dist/BaseEncodingTemplate.d.ts",
       "import": "./dist/BaseEncodingTemplate.js"
     },
+    "./SchemaUploadTemplate": {
+      "types": "./dist/SchemaUploadTemplate.d.ts",
+      "import": "./dist/SchemaUploadTemplate.js"
+    },
+    "./SchemaEncodingTemplate": {
+      "types": "./dist/SchemaEncodingTemplate.d.ts",
+      "import": "./dist/SchemaEncodingTemplate.js"
+    },
+    "./SchemaExporter": {
+      "types": "./dist/SchemaExporter.d.ts",
+      "import": "./dist/SchemaExporter.js"
+    },
     "./DataColumn": {
       "types": "./dist/DataColumn.d.ts",
       "import": "./dist/DataColumn.js"
     },
     "./FileUploadWizard": {
       "types": "./dist/FileUploadWizard.svelte.d.ts",
-      "import": "./dist/FileUploadWizard.svelte"
+      "import": "./dist/FileUploadWizard.svelte",
+      "svelte": "./dist/FileUploadWizard.svelte"
     },
     "./EncodingWizard": {
       "types": "./dist/EncodingWizard.svelte.d.ts",
-      "import": "./dist/EncodingWizard.svelte"
+      "import": "./dist/EncodingWizard.svelte",
+      "svelte": "./dist/EncodingWizard.svelte"
+    },
+    "./SheetPickupDialog": {
+      "types": "./dist/SheetPickupDialog.svelte.d.ts",
+      "import": "./dist/SheetPickupDialog.svelte",
+      "svelte": "./dist/SheetPickupDialog.svelte"
+    },
+    "./SheetNameViewRender": {
+      "types": "./dist/SheetNameViewRender.svelte.d.ts",
+      "import": "./dist/SheetNameViewRender.svelte",
+      "svelte": "./dist/SheetNameViewRender.svelte"
     }
   },
   "peerDependencies": {
@@ -73,13 +106,14 @@
     "@sveltejs/kit": "^2.0.0",
     "@sveltejs/package": "^2.0.0",
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
-    "@ticatec/i18n": "^0.2.0",
-    "@ticatec/uniface-element": "^0.2.0",
-    "@ticatec/uniface-google-material-icons": "^0.1.2",
+    "@ticatec/i18n": "^0.2.4",
+    "@ticatec/uniface-element": "^0.3.18",
+    "@ticatec/uniface-google-material-icons": "^0.1.8",
     "dayjs": "^1.11.10",
+    "exceljs": "^4.4.0",
     "publint": "^0.3.2",
     "sass": "^1.57.1",
-    "svelte": "^5.0.0",
+    "svelte": "^5.55.5",
     "svelte-check": "^4.0.0",
     "svelte-portal": "^2.2.1",
     "svelte-preprocess": "^6.0.3",
@@ -87,18 +121,18 @@
     "typescript": "^5.7.3",
     "vite": "^5.4.11"
   },
-  "author": "Henry Feng",
+  "author": "Henry Feng <huili.f@gmail.com>",
   "license": "MIT",
   "private": false,
   "dependencies": {
     "xlsx": "^0.18.5"
   },
   "repository": {
-    "type": "https",
-    "url": "https://github.com/ticatec/batch-upload.git"
+    "type": "git",
+    "url": "https://github.com/ticatec/excel-wizard.git"
   },
   "bugs": {
-    "url": "https://github.com/ticatec/batch-upload/issues"
+    "url": "https://github.com/ticatec/excel-wizard/issues"
   },
-  "homepage": "https://github.com/ticatec/batch-upload"
+  "homepage": "https://github.com/ticatec/excel-wizard#readme"
 }

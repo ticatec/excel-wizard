@@ -54,7 +54,7 @@ let columns: Array<DataColumn> = [
         field: 'batchTracking',
         text: '批次管理',
         width: 80,
-        parser: (text: string) => text == '是' || text.toLowerCase().trim() == 'yes' || text.toLowerCase().trim() == 'y',
+        //parser: (text: string) => text != null &&  (text == '是' || text.toLowerCase().trim() == 'yes' || text.toLowerCase().trim() == 'y'),
         align: "center"
     },
     {
@@ -62,7 +62,7 @@ let columns: Array<DataColumn> = [
         text: '有效期管理',
         width: 80,
         align: "center",
-        parser: (text: string) => text == '是' || text.toLowerCase().trim() == 'yes' || text.toLowerCase().trim() == 'y'
+        //parser: (text: string) => text != null && (text == '是' || text.toLowerCase().trim() == 'yes' || text.toLowerCase().trim() == 'y')
     }
 ]
 export default class EmployeesTemplate extends BaseUploadTemplate {

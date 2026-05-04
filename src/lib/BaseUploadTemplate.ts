@@ -1,10 +1,11 @@
-// 改进的BaseUploadTemplate.ts - 完全清理元数据相关代码
+// Improved BaseUploadTemplate.ts - Completely clean metadata-related code
 import BaseTemplate from "$lib/BaseTemplate";
 import type {DataColumn as TableColumn} from "@ticatec/uniface-element/DataTable";
 import type DataColumn from "$lib/DataColumn";
 import utils from "$lib/utils";
 import * as XLSX from 'xlsx';
 import i18nRes from "$lib/i18n_res/i18nRes";
+import {BATCH_CONFIG} from "$lib/config";
 
 export type UploadFun = (arr: Array<any>) => Promise<Array<any>>;
 export type UpdateProgressStatus = () => void;
@@ -47,14 +48,14 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
     protected updateProgressStatus: UpdateProgressStatus | null = null;
     private _uploadAborted: boolean = false;
 
-    protected constructor(batchSize: number = 50) {
+    protected constructor(batchSize: number = BATCH_CONFIG.DEFAULT_BATCH_SIZE) {
         super();
-        this.batchSize = Math.max(1, batchSize);
+        this.batchSize = Math.max(BATCH_CONFIG.MIN_BATCH_SIZE, batchSize);
     }
 
     /**
-     * 状态更新的监听器
-     * @param value
+     * Listener for status updates
+     * @param value - The callback function to invoke on status update
      */
     setProgressStatusListener(value: UpdateProgressStatus) {
         this.updateProgressStatus = value;
@@ -63,14 +64,14 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
     protected abstract uploadData(list: Array<any>): Promise<Array<any>>;
 
     /**
-     * 中止上传
+     * Abort upload process
      */
     abortUpload() {
         this._uploadAborted = true;
     }
 
     /**
-     * 重置上传状态
+     * Reset upload status
      */
     resetUploadStatus() {
         this._uploadAborted = false;
@@ -84,7 +85,7 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
     }
 
     /**
-     * 上传数据
+     * Upload data
      */
     async upload() {
         this._uploadAborted = false;
@@ -145,16 +146,16 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
 
             this.updateProgressStatus?.();
 
-            // 添加小延迟以避免过快的请求
+            // Add small delay to avoid rapid requests
             if (i + this.batchSize < this._list.length && !this._uploadAborted) {
-                await new Promise(resolve => setTimeout(resolve, 100));
+                await new Promise(resolve => setTimeout(resolve, BATCH_CONFIG.BATCH_DELAY_MS));
             }
         }
     }
 
     /**
-     * 将数据包裹着一个对象里面
-     * @param data
+     * Wrap data in an object with status
+     * @param data - The data to wrap
      * @protected
      */
     protected wrapData(data: any): any {
@@ -162,14 +163,14 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
     }
 
     /**
-     * 获取表格的列定义
+     * Get table column definitions
      */
     get columns(): Array<TableColumn> {
         return [...super.columns, statusColumn];
     }
 
     /**
-     * 获取上传统计信息
+     * Get upload statistics
      */
     get uploadStats() {
         const pending = this._list.filter(item => item.status === 'P').length;
@@ -189,17 +190,17 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
     }
 
     /**
-     * 导出处理异常的数据 - 基础版本（保持向后兼容）
-     * @param filename
+     * Export error data for re-upload - Base version (maintains backward compatibility)
+     * @param filename - The filename for the exported file
      */
     exportErrorRowsToExcel(filename: string) {
         this.exportErrorData(filename, { originalFormat: false });
     }
 
     /**
-     * 导出错误数据 - 增强版本
-     * @param filename
-     * @param options 导出选项
+     * Export error data - Enhanced version with options
+     * @param filename - The filename for the exported file
+     * @param options - Export options
      */
     exportErrorData(filename: string, options: ExportErrorOptions = {}) {
         const {
@@ -248,7 +249,7 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
     }
 
     /**
-     * 导出原始格式 - 可以重新导入和上传
+     * Export in original format - can be re-imported and uploaded
      * @private
      */
     private _exportOriginalFormat(workbook: XLSX.WorkBook, includeAllData: boolean) {
@@ -262,9 +263,9 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
             return;
         }
 
-        // 获取可见且非虚拟的列
+        // 获取非虚拟和非忽略的列
         const exportColumns = this.getMetaColumns().filter(col =>
-            col.visible !== false && !col.dummy && !col.ignore
+            !col.dummy && !col.ignore
         );
 
         // 创建标题行（与原始导入格式一致）
@@ -285,14 +286,14 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
         // 设置列宽
         this._setColumnWidths(worksheet, [headers, ...rows]);
 
-        // 添加到工作簿 - 重传数据作为第一个工作表
-        const sheetName = includeAllData ? '全部数据重传' : '失败数据重传';
+        // Add to workbook - re-upload data as first sheet
+        const sheetName = includeAllData ? 'All Data Re-upload' : 'Failed Data Re-upload';
 
         XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
     }
 
     /**
-     * 导出错误详情 - 作为第二个工作表
+     * Export error details - As second worksheet
      * @private
      */
     private _exportErrorDetails(workbook: XLSX.WorkBook, includeAllData: boolean) {
@@ -302,24 +303,24 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
 
         if (errorRows.length === 0) return;
 
-        const visibleColumns = this.getMetaColumns().filter(col => col.visible !== false && !col.dummy);
+        const exportColumns = this.getMetaColumns().filter(col => !col.dummy);
         const headers = [
-            '行号',
-            ...visibleColumns.map(col => col.text || col.field),
-            '结果',
-            '错误原因'
+            'Row No.',
+            ...exportColumns.map(col => col.text || col.field),
+            'Result',
+            'Error'
         ];
 
         const rows = errorRows.map((row, index) => {
-            const values = visibleColumns.map(col => {
+            const values = exportColumns.map(col => {
                 return utils.getNestedValue(row.data, col.field);
             });
 
-            // 简化状态：只有成功或失败
-            const result = row.error ? '✗ 失败' : '✓ 成功';
+            // Simplified status: success or failure only
+            const result = row.error ? '✗ Failed' : '✓ Success';
 
             return [
-                index + 1, // 行号
+                index + 1, // Row number
                 ...values,
                 result,
                 row.errorText || row.error || ''
@@ -329,18 +330,18 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
         const worksheetData = [headers, ...rows];
         const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
 
-        // 设置列宽 - 错误原因列设置更宽
+        // Set column widths - error column wider
         const colWidths = headers.map((header, colIndex) => {
             let maxLength = header.length;
 
-            // 计算该列的最大长度
+            // Calculate maximum length for this column
             rows.forEach(row => {
                 const cellValue = String(row[colIndex] || '');
                 maxLength = Math.max(maxLength, cellValue.length);
             });
 
-            // 错误原因列设置更宽
-            if (header === '错误原因') {
+            // Error column wider
+            if (header === 'Error') {
                 return { wch: Math.min(Math.max(maxLength, 20), 60) };
             }
 
@@ -349,41 +350,41 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
 
         worksheet['!cols'] = colWidths;
 
-        const sheetName = includeAllData ? '上传详情' : '异常详情';
+        const sheetName = includeAllData ? 'Upload Details' : 'Error Details';
         XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
     }
 
     /**
-     * 格式化值用于导出
+     * Format value for export
      * @private
      */
     private _formatValueForExport(value: any, column: DataColumn): any {
-        // 如果列有解析器，可能需要逆向格式化
-        // 这里可以根据具体的parser类型进行逆向处理
+        // If column has a parser, may need reverse formatting
+        // Can implement reverse processing based on specific parser type here
         if (value === null || value === undefined) {
             return '';
         }
 
-        // 日期格式化
+        // Date formatting
         if (value instanceof Date) {
-            return value.toISOString().split('T')[0]; // YYYY-MM-DD格式
+            return value.toISOString().split('T')[0]; // YYYY-MM-DD format
         }
 
-        // 数字格式化
+        // Number formatting
         if (typeof value === 'number') {
             return value;
         }
 
-        // 布尔值格式化
+        // Boolean formatting
         if (typeof value === 'boolean') {
-            return value ? '是' : '否';
+            return value ? 'Yes' : 'No';
         }
 
         return String(value);
     }
 
     /**
-     * 设置列宽
+     * Set column widths
      * @private
      */
     private _setColumnWidths(worksheet: XLSX.WorkSheet, data: any[][]) {
@@ -401,8 +402,8 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
     }
 
     /**
-     * 快速导出错误数据用于重新上传
-     * @param filename
+     * Quick export error data for re-upload
+     * @param filename - The filename for the exported file
      */
     exportErrorsForReupload(filename: string) {
         this.exportErrorData(filename, {
@@ -413,8 +414,8 @@ export default abstract class BaseUploadTemplate extends BaseTemplate {
     }
 
     /**
-     * 导出完整报告（包含所有数据和详情）
-     * @param filename
+     * Export full report (includes all data and details)
+     * @param filename - The filename for the exported file
      */
     exportFullReport(filename: string) {
         this.exportErrorData(filename, {

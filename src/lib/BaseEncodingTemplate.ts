@@ -1,11 +1,10 @@
 
 import BaseTemplate from "$lib/BaseTemplate";
-import type DataColumn from "$lib/DataColumn";
 import type {DataColumn as TableColumn} from "@ticatec/uniface-element/DataTable";
 import i18nRes from "$lib/i18n_res";
 
 const ValidData = `<span style="color: #76FF03">${i18nRes.textValid}</span>`;
-const InvalidData = `<span style="color: #ff3e00">${i18nRes.textInvalid.key}</span>`;
+const InvalidData = `<span style="color: #ff3e00">${i18nRes.textInvalid}</span>`;
 
 export interface ValidationResult {
     valid: boolean;
@@ -27,12 +26,8 @@ export default abstract class BaseEncodingTemplate extends BaseTemplate {
         field: "valid",
         width: 90,
         align: 'center',
-        escapeHTML: false, // 修复：需要渲染HTML
+        escapeHTML: true,
         formatter: valid => valid ? ValidData : InvalidData
-    }
-
-    protected constructor(columns: Array<DataColumn>, rowOffset: number = 1) {
-        super(columns, rowOffset);
     }
 
     /**

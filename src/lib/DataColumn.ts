@@ -2,10 +2,12 @@ import type {DataColumn as TableColumn} from "@ticatec/uniface-element/DataTable
 
 export type ParserText = (text: string) => any;
 
+export type SetAttributeValue = (data: string, value: any) => void;
+
 export default interface DataColumn extends TableColumn {
 
     /**
-     * 字段名
+     * 对应的字段
      */
     field: string;
 
@@ -23,5 +25,10 @@ export default interface DataColumn extends TableColumn {
      * 伪列，不解析，仅用于回显
      */
     dummy?: boolean;
+
+    /**
+     * 手工设定值
+     */
+    setValue?: SetAttributeValue;
 
 }

@@ -1,4 +1,4 @@
-import BaseEncodingTemplate, { type ValidationResult } from "$lib/BaseEncodingTemplate";
+import BaseEncodingTemplate, {type ValidationResult} from "$lib/BaseEncodingTemplate";
 import type DataColumn from "$lib/DataColumn";
 
 let columns: Array<DataColumn> = [
@@ -47,7 +47,7 @@ let columns: Array<DataColumn> = [
         field: 'batchTracking',
         text: '批次管理',
         width: 80,
-        parser: (text: string) => text == '是' || text.toLowerCase().trim() == 'yes' || text.toLowerCase().trim() == 'y',
+        parser: (text: string) => text && (text == '是' || text.toString().toLowerCase()?.trim() == 'yes' || text.toString().toLowerCase()?.trim() == 'y'),
         align: "center"
     },
     {
@@ -55,38 +55,40 @@ let columns: Array<DataColumn> = [
         text: '有效期管理',
         width: 80,
         align: "center",
-        parser: (text: string) => text == '是' || text.toLowerCase().trim() == 'yes' || text.toLowerCase().trim() == 'y',
+        parser: (text: string) => text && (text == '是' || text.toString().toLowerCase()?.trim() == 'yes' || text.toString().toLowerCase()?.trim() == 'y'),
         formatter: (value) => value ? 'Yes' : 'No'
     }
 ]
 
 export default class ProductTemplate extends BaseEncodingTemplate {
+    protected getMetaColumns(): Array<DataColumn> {
+        return columns;
+    }
+
     protected validateData(row: any): ValidationResult | Promise<ValidationResult> {
-        throw new Error("Method not implemented.");
+        //throw new Error("Method not implemented.");
+        return {
+            valid: true
+        }
     }
 
-    constructor() {
-        super(columns);
-    }
-
-    protected isDataValid(row: any): boolean {
-        return row.code != null;
-    }
     protected encodeData(rows: Array<any>): Promise<Array<any>> {
         return new Promise((resolve) => {
-            let list = rows.map(item=> {
+            let list = rows.map(item => {
                 let tmp = JSON.parse(JSON.stringify(item));
                 if (Math.random() > 0.1) {
                     tmp.code = ((new Date()).getTime() * 10000 + Math.floor(Math.random() * 10000)).toString(36);
                 }
                 return tmp;
             });
-            setTimeout(()=> {resolve(list)}, 1000);
+            setTimeout(() => {
+                resolve(list)
+            }, 1000);
         })
     }
 
     get valid(): boolean {
-        return this._list.filter(item=>item.code==null).length == 0;
+        return this._list.filter(item => item.code == null).length == 0;
     }
 
 }
