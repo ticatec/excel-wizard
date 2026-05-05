@@ -9,11 +9,10 @@ export {default as BaseEncodingTemplate} from "./BaseEncodingTemplate";
 export {default as BaseTemplate} from "./BaseTemplate";
 
 // Schema-based classes
-export {default as SchemaUploadTemplate} from "./SchemaUploadTemplate";
-export {default as SchemaEncodingTemplate} from "./SchemaEncodingTemplate";
-export {SchemaExporter, createSchemaExporter} from "./SchemaExporter";
-export type {SchemaUploadFun} from "./SchemaUploadTemplate";
-export type {SchemaValidateFun, SchemaEncodeFun} from "./SchemaEncodingTemplate";
+export {default as SchemaUploadTemplate} from "./schema/SchemaUploadTemplate";
+export {default as SchemaEncodingTemplate} from "./schema/SchemaEncodingTemplate";
+export type {SchemaUploadFun} from "./schema/SchemaUploadTemplate";
+export type {SchemaValidateFun, SchemaEncodeFun} from "./schema/SchemaEncodingTemplate";
 
 // Components
 export {default as FileUploadWizard} from "./FileUploadWizard.svelte";
@@ -24,7 +23,7 @@ export {default as SheetNameViewRender} from "./SheetNameViewRender.svelte";
 // Utilities
 export * from "./wizardUtils";
 export * from "./excelUtils";
-export * from "./schemaUtils";
+export {SchemaHelper, DEFAULT_KEY_NAME, DEFAULT_TEXT_NAME, createSchemaHelper} from "./schema/SchemaHelper";
 export type { default as DataColumn} from "./DataColumn";
 
 // Types
@@ -35,7 +34,7 @@ export {ProcessStatus} from "./ProcessStatus";
 
 // Schema types
 export type {SheetSchema} from "./schema/SheetSchema";
-export type {OptionsList, ColumnSchema, CellValueType, AttributesSchema} from "./schema/SheetSchema";
+export type {OptionsList, ColumnSchema, CellValueType, AttributesSchema, TemplateDecoration, ColumnDecoration} from "./schema/SheetSchema";
 
 // Default export
 export default FileUploadWizard;

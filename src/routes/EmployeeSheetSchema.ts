@@ -5,7 +5,6 @@ import type {SheetSchema} from "$lib/schema/SheetSchema";
  */
 const employeeSheetSchema: SheetSchema = {
     headerRowNum: 0,
-    dataRowNum: 1,
     columns: [
         {
             field: 'merchantName',

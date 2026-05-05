@@ -1,6 +1,6 @@
 {
   "name": "@ticatec/excel-wizard",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A schema-driven Svelte component library for Excel batch data processing with wizard-style interfaces, supporting validation, encoding, and template generation.",
   "scripts": {
     "dev": "vite dev",

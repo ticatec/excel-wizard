@@ -12,6 +12,7 @@
         parseExcelFile,
         FILE_ACCEPT
     } from "$lib/wizardUtils";
+    import DropZone from "$lib/DropZone.svelte";
 
 
     export let title: string;
@@ -22,6 +23,8 @@
 
     let uploadField: HTMLInputElement;
     let list: Array<any> = [];
+    let isDragging: boolean = false;
+    let dragCounter: number = 0;
 
     const btnChoose = createChooseButton(() => uploadField);
 
@@ -49,6 +52,50 @@
         });
     }
 
+    const handleInputChange = (e: Event) => {
+        const target = e.target as HTMLInputElement;
+        const file = target.files?.[0];
+        if (file) {
+            handleFileChange(file);
+        }
+    }
+
+    // Drag and drop handlers
+    const handleDragEnter = (e: DragEvent) => {
+        e.preventDefault();
+        dragCounter++;
+        isDragging = true;
+    }
+
+    const handleDragOver = (e: DragEvent) => {
+        e.preventDefault();
+    }
+
+    const handleDragLeave = (e: DragEvent) => {
+        e.preventDefault();
+        dragCounter--;
+        if (dragCounter === 0) {
+            isDragging = false;
+        }
+    }
+
+    const handleDrop = async (e: DragEvent) => {
+        e.preventDefault();
+        dragCounter = 0;
+        isDragging = false;
+
+        const files = e.dataTransfer?.files;
+        if (files && files.length > 0) {
+            const file = files[0];
+            // Check file type
+            if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                await handleFileChange(file);
+            } else {
+                window.Toast?.show(i18nRes.parseFailure || 'Please select an Excel file (.xlsx or .xls)');
+            }
+        }
+    }
+
     let columns: Array<TableColumn>;
 
     onMount(async () => {
@@ -60,16 +107,24 @@
 
 <Dialog {title} {actions}
         content$style="width: {width}; height: {height}; padding: 12px;">
-    <Box style="border: 1px solid var(--uniface-editor-border-color, #F8FAFC); width: 100%; height: 100%; "
-         round>
-        <DataTable style="width: 100%; height: 100%" {list} {indicatorColumn} {columns}>
 
-        </DataTable>
-    </Box>
+    {#if list.length === 0}
+        <!-- Drag and Drop Zone -->
+        <DropZone onFileDrop={handleFileChange} height="240px" width="360px" />
+    {:else}
+        <!-- Data Table -->
+        <Box style="border: 1px solid var(--uniface-editor-border-color, #F8FAFC); width: 100%; height: 100%; "
+             round>
+            <DataTable style="width: 100%; height: 100%" {list} {indicatorColumn} {columns}>
+
+            </DataTable>
+        </Box>
+    {/if}
+
     <input
         type="file"
         bind:this={uploadField}
-        on:change={(e) => handleFileChange(e.target.files?.[0])}
+        on:change={handleInputChange}
         style="display: none"
         accept={FILE_ACCEPT}
     >

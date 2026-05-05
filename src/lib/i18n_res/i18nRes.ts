@@ -27,9 +27,12 @@ const langRes = {
     uploadStatText: "Total: {{total}}, Success: {{success}}, Failed: {{failed}}",
     buttonExportException: "Error report",
     buttonExportFull: "Full report",
-    buttonReset: "Reset"
+    buttonReset: "Reset",
+    dragDropText: "Drag and drop your Excel file here",
+    dragDropSubText: "or click to browse",
+    dragDropFileType: "Supports .xlsx and .xls files"
 }
 
-const i18nRes = i18nUtils.createResourceProxy(langRes, 'batchUploading');
+const i18nRes = i18nUtils.createResourceProxy(langRes, 'excelWizard');
 
 export default i18nRes;

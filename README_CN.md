@@ -63,16 +63,15 @@ npm install exceljs
 
 | 文件 | 描述 |
 |------|------|
-| `SchemaUploadTemplate.ts` | 基于 SheetSchema 的具体上传类（无需继承） |
-| `SchemaEncodingTemplate.ts` | 基于 SheetSchema 的具体编码类（无需继承） |
-| `SchemaExporter.ts` | 生成带下拉验证的 Excel 模板 |
+| `schema/SchemaUploadTemplate.ts` | 抽象上传类，基于 SheetSchema 简化实现 |
+| `schema/SchemaEncodingTemplate.ts` | 抽象编码类，基于 SheetSchema 简化实现 |
 | `schema/SheetSchema.ts` | Schema 定义的 TypeScript 接口 |
+| `schema/SchemaHelper.ts` | Schema 操作工具类（包含模板生成功能） |
 
 ### 工具类
 
 | 文件 | 描述 |
 |------|------|
-| `schemaUtils.ts` | Schema 操作工具（SchemaHelper 类） |
 | `excelUtils.ts` | Excel 单元格地址编码/解码工具 |
 | `DataColumn.ts` | 列结构接口，支持解析选项 |
 | `ProcessStatus.ts` | 上传流程状态枚举（初始化、待上传、上传中、已完成） |
@@ -84,9 +83,103 @@ npm install exceljs
 
 ## 🚀 快速开始
 
+### 选择合适的组件
+
+`@ticatec/excel-wizard` 提供两个核心向导组件，适用于不同的使用场景：
+
+#### FileUploadWizard + SchemaUploadTemplate
+
+**适用场景：批量数据上传到服务器**
+
+```typescript
+import {FileUploadWizard} from '@ticatec/excel-wizard';
+import {SchemaUploadTemplate} from '@ticatec/excel-wizard';
+
+// 典型流程：
+// 1. 用户上传 Excel 文件
+// 2. 客户端解析并验证数据
+// 3. 批量上传到服务器
+// 4. 显示上传进度和结果
+// 5. 导出失败记录用于重新上传
+
+window.Dialog.showModal(FileUploadWizard, {
+    template: uploadTemplate,
+    width: '1240px',
+    title: '批量上传产品'
+});
+```
+
+**特点：**
+- ✅ 包含完整的服务器上传流程
+- ✅ 支持批量上传和进度跟踪
+- ✅ 自动错误处理和重试机制
+- ✅ 导出失败数据用于修正后重新上传
+- ✅ 适用于需要服务器验证和存储的场景
+
+**示例场景：**
+- 批量导入产品目录
+- 批量创建用户账户
+- 批量上传订单数据
+- 数据库初始化和迁移
+
+#### EncodingWizard + SchemaEncodingTemplate
+
+**适用场景：从 Excel 读取数据并填充表单（纯客户端）**
+
+```typescript
+import {EncodingWizard} from '@ticatec/excel-wizard';
+import {SchemaEncodingTemplate} from '@ticatec/excel-wizard';
+
+// 典型流程：
+// 1. 用户选择本地 Excel 文件
+// 2. 客户端解析并映射字段
+// 3. 数据转换和格式化
+// 4. 直接填充到表单或本地数据结构
+// 5. 无服务器交互，纯客户端处理
+
+window.Dialog.showModal(EncodingWizard, {
+    template: encodingTemplate,
+    width: '1240px',
+    title: '从 Excel 导入数据',
+    confirmCallback: (encodedData) => {
+        // 处理编码后的数据
+        console.log('导入的数据：', encodedData);
+        // 填充表单、更新本地状态等
+        return true;  // 关闭对话框
+    }
+});
+```
+
+**特点：**
+- ✅ 纯客户端处理，无需服务器交互
+- ✅ 灵活的字段映射和数据转换
+- ✅ 支持自定义验证逻辑
+- ✅ 可选的数据预处理和格式化
+- ✅ 适用于本地数据处理和表单填充
+
+**示例场景：**
+- 从 Excel 导入配置参数
+- 批量填充表单字段
+- 本地数据报表生成
+- 离线数据处理和转换
+- 从模板文件读取初始化数据
+
+**对比总结：**
+
+| 特性 | FileUploadWizard | EncodingWizard |
+|------|------------------|----------------|
+| **主要用途** | 批量上传到服务器 | 本地数据导入和处理 |
+| **服务器交互** | 必需 | 不需要 |
+| **数据处理** | 验证 + 上传 | 映射 + 转换 |
+| **进度跟踪** | 上传进度 | 处理进度 |
+| **错误处理** | 重试 + 导出失败数据 | 验证 + 提示 |
+| **典型场景** | 数据库批量导入 | 表单填充、本地处理 |
+
+---
+
 ### 方式一：Schema 方式（推荐）
 
-Schema 方式无需继承，只需定义 Schema 并将函数传递给构造函数。
+Schema 方式通过继承抽象类并实现抽象方法，大大简化代码编写。
 
 #### 1. 定义 Schema
 
@@ -138,21 +231,25 @@ export default productSheetSchema;
 import {SchemaUploadTemplate} from '@ticatec/excel-wizard';
 import productSheetSchema from './productSheetSchema';
 
-// 创建模板实例 - 无需继承！
-const uploadTemplate = new SchemaUploadTemplate(
-    productSheetSchema,
-    // 上传函数
-    async (rows) => {
+// 创建自定义上传模板类
+class ProductUploadTemplate extends SchemaUploadTemplate {
+    constructor() {
+        super(productSheetSchema);  // 传递 schema 给父类
+    }
+
+    // 实现抽象方法：上传数据
+    protected async uploadData(rows: Array<any>) {
         const results = await fetch('/api/products/upload', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(rows)
         });
         return results.json();
-    },
-    // 可选：自定义批量大小
-    50  // 默认为 50
-);
+    }
+}
+
+// 创建模板实例
+const uploadTemplate = new ProductUploadTemplate();
 
 // 与 FileUploadWizard 配合使用
 import {FileUploadWizard} from '@ticatec/excel-wizard';
@@ -167,31 +264,42 @@ window.Dialog.showModal(FileUploadWizard, {
 #### 3. 使用 SchemaEncodingTemplate 进行数据编码
 
 ```typescript
-import {SchemaEncodingTemplate} from '@ticatec/excel-wizard';
+import {SchemaEncodingTemplate, type SchemaEncodeFun, type ValidationResult} from '@ticatec/excel-wizard';
 import productSheetSchema from './productSheetSchema';
 
-// 创建模板实例 - 无需继承！
-const encodingTemplate = new SchemaEncodingTemplate(
-    productSheetSchema,
-    // 编码函数
-    async (rows) => {
-        const response = await fetch('/api/products/encode', {
-            method: 'POST',
-            body: JSON.stringify(rows)
-        });
-        return response.json();
-    },
-    // 可选：验证函数
-    (row) => {
-        if (!row.barcode) {
-            return {
-                valid: false,
-                hint: 'SKU 不能为空'
-            };
-        }
-        return {valid: true};
+// 创建自定义编码模板类
+class ProductEncodingTemplate extends SchemaEncodingTemplate {
+    constructor() {
+        super(productSheetSchema);  // 传递 schema 给父类
     }
-);
+
+    // 实现抽象方法：提供编码函数
+    protected getEncodeFunction(): SchemaEncodeFun {
+        return async (rows) => {
+            const response = await fetch('/api/products/encode', {
+                method: 'POST',
+                body: JSON.stringify(rows)
+            });
+            return response.json();
+        };
+    }
+
+    // 可选：重写验证方法
+    protected getValidateFunction(): (row: any) => ValidationResult {
+        return (row) => {
+            if (!row.barcode) {
+                return {
+                    valid: false,
+                    hint: 'SKU 不能为空'
+                };
+            }
+            return {valid: true};
+        };
+    }
+}
+
+// 创建模板实例
+const encodingTemplate = new ProductEncodingTemplate();
 
 // 与 EncodingWizard 配合使用
 import {EncodingWizard} from '@ticatec/excel-wizard';
@@ -207,27 +315,47 @@ window.Dialog.showModal(EncodingWizard, {
 });
 ```
 
-#### 4. 生成带下拉选项的 Excel 模板
+#### 4. 生成带提示行和下拉选项的 Excel 模板
+
+现在可以直接从模板实例生成 Excel 模板：
 
 ```typescript
-import {SchemaExporter} from '@ticatec/excel-wizard';
-import productSheetSchema from './productSheetSchema';
-
-// 创建导出器
-const exporter = new SchemaExporter(productSheetSchema);
-
-// 生成并下载模板
-await exporter.downloadTemplate('product-template');
+// 直接使用模板实例
+await uploadTemplate.downloadTemplate('product-template');
 
 // 或带示例数据
-await exporter.downloadTemplate('product-template', [
+await uploadTemplate.downloadTemplate('product-template', [
     {barcode: 'SKU001', name: '产品1', category: 'ELEC'},
     {barcode: 'SKU002', name: '产品2', category: 'CLOT'}
 ]);
 ```
 
+**使用 SchemaHelper**（如果需要更底层的控制）：
+
+```typescript
+import {SchemaHelper} from '@ticatec/excel-wizard';
+
+const helper = new SchemaHelper(productSheetSchema);
+
+// 生成并下载模板
+await helper.downloadTemplate('product-template');
+
+// 获取下拉选项
+const categories = helper.getDropdownOptions('categories');
+// 返回：['电子产品', '服装', '食品']
+
+// 文本转键值
+const categoryCode = helper.textToKey('电子产品', 'categories');
+// 返回：'ELEC'
+
+// 键值转文本
+const categoryText = helper.keyToText('ELEC', 'categories');
+// 返回：'电子产品'
+```
+
 这将生成一个 Excel 文件，包含：
 - ✅ 预定义的表头
+- ✅ 提示行（如果 `showHint: true`）
 - ✅ 正确的列宽
 - ✅ "分类"列的下拉验证
 - ✅ 示例数据（如果提供）
@@ -288,16 +416,23 @@ interface SheetSchema {
     // 表头行号（0开始索引）
     headerRowNum: number;
 
-    // 数据开始行号（0开始索引）
-    dataRowNum: number;
+    // 是否显示提示行（可选）
+    showHint?: boolean;  // 默认：false
 
     // 列定义
     columns: ColumnSchema[];
 
     // 工作表级属性提取（可选）
     attributes?: Record<string, AttributesSchema>;
+
+    // 模板装饰（可选）
+    decorations?: TemplateDecoration[];
 }
 ```
+
+**数据行位置规则：**
+- 无提示行 (`showHint: false`): 数据从 `headerRowNum + 1` 开始
+- 有提示行 (`showHint: true`): 数据从 `headerRowNum + 2` 开始
 
 #### ColumnSchema
 
@@ -314,7 +449,47 @@ interface ColumnSchema {
     parser?: (value: any) => any;  // 自定义解析器
     ignore?: boolean;           // 上传时忽略此字段
     dummy?: boolean;            // 虚拟列，仅用于显示
+
+    // 列提示文本（用于生成模板，仅在 showHint 为 true 时显示）
+    hint?: string;              // 提示内容，支持换行（\n）
+
+    // 列装饰（用于生成模板时为数据单元格定义样式）
+    decoration?: ColumnDecoration;
 }
+```
+
+**提示行示例：**
+```typescript
+const schema: SheetSchema = {
+    headerRowNum: 0,
+    showHint: true,  // 启用提示行
+    columns: [
+        {
+            field: 'email',
+            text: '邮箱',
+            width: 200,
+            hint: '必填。必须是有效的邮箱地址。'
+        },
+        {
+            field: 'age',
+            text: '年龄',
+            width: 100,
+            hint: '必须在 18 到 65 之间。\n只允许数字。'
+        }
+    ]
+};
+```
+
+**Excel 布局：**
+```
+无提示行 (showHint: false):
+Row 1: [列标题]
+Row 2: [数据起始行]
+
+有提示行 (showHint: true):
+Row 1: [列标题]
+Row 2: [提示文本 - 支持自动换行]
+Row 3: [数据起始行]
 ```
 
 #### OptionsList
@@ -324,7 +499,49 @@ interface OptionsList {
     list: Array<Record<string, string>>;
     keyName?: string;   // 默认：'code'
     textName?: string;  // 默认：'text'
+
+    // 自定义解析器：从显示文本提取键值（例如："ELEC - 电子产品" → "ELEC"）
+    parser?: (value: any) => any;
+
+    // 自定义格式化器：从键值生成显示文本（例如："ELEC" → "ELEC - 电子产品"）
+    formatter?: (key: string, list: Array<Record<string, string>>) => string;
 }
+```
+
+**Parser 优先级：**
+
+当列同时指定了 `optionsName` 和 parser 时：
+
+1. **最高优先级**：`OptionsList.parser`（如果 optionsName 指定且 OptionsList.parser 存在）
+2. **中等优先级**：`ColumnSchema.parser`（如果指定）
+3. **低优先级**：默认 options 的 text-to-key 查找（如果 optionsName 指定）
+4. **无转换**：既没有 parser 也没有 optionsName
+
+对于基于选项的列，推荐在 `OptionsList` 中定义 parser 而非 `ColumnSchema`：
+
+```typescript
+// ✅ 推荐：在 OptionsList 中定义 parser
+const categoryOptions: OptionsList = {
+    list: [
+        { code: 'ELEC', text: '电子产品' },
+        { code: 'CLOT', text: '服装' }
+    ],
+    parser: (value) => {
+        const parts = String(value).split(' - ');
+        return parts[0].trim();  // "ELEC - 电子产品" → "ELEC"
+    },
+    formatter: (key, list) => {
+        const item = list.find(i => i.code === key);
+        return item ? `${key} - ${item.text}` : key;  // "ELEC" → "ELEC - 电子产品"
+    }
+};
+
+// ❌ 避免：ColumnSchema.parser 在 OptionsList.parser 存在时会被忽略
+const column: ColumnSchema = {
+    field: 'category',
+    optionsName: 'categories',
+    parser: (value) => value.split(' - ')[0]  // 如果 OptionsList.parser 存在则会被忽略
+};
 ```
 
 #### AttributesSchema
@@ -333,9 +550,6 @@ interface OptionsList {
 interface AttributesSchema {
     col: number;          // 列索引（0开始）
     row: number;          // 行索引（0开始）
-    labelCol?: number;    // 标签列位置
-    labelRow?: number;    // 标签行位置
-    labelText?: string;   // 固定标签文本
     type?: CellValueType; // 值类型，用于类型转换
 
     // 单元格合并（仅用于导出）
@@ -344,17 +558,31 @@ interface AttributesSchema {
 }
 ```
 
+**注意：** 属性名称（在 attributes 对象中的键）将直接成为 `attrs` 对象的属性名。例如：
+```typescript
+attributes: {
+    batchId: { col: 1, row: 0 },  // 访问时使用 template.attrs.batchId
+    uploadDate: { col: 3, row: 0 }  // 访问时使用 template.attrs.uploadDate
+}
+```
+
 ### 核心类
 
 #### SchemaUploadTemplate
 
+抽象上传类，基于 SheetSchema 简化实现。
+
 ```typescript
-class SchemaUploadTemplate extends BaseUploadTemplate {
-    constructor(
-        schema: SheetSchema,
-        uploadFunction: SchemaUploadFun,
-        batchSize?: number
-    )
+abstract class SchemaUploadTemplate extends BaseUploadTemplate {
+    // 需要实现的抽象方法
+    protected abstract getSheetSchema(): SheetSchema;
+    protected abstract uploadData(rows: Array<any>): Promise<Array<any>>;
+
+    // 生成并下载模板
+    async downloadTemplate(
+        filename?: string,
+        sampleData?: Array<any>
+    ): Promise<void>
 
     // 获取提取的属性
     getAttributes(): Record<string, any>
@@ -362,20 +590,42 @@ class SchemaUploadTemplate extends BaseUploadTemplate {
 }
 ```
 
-**SchemaUploadFun 类型：**
+**使用方式：**
 ```typescript
-type SchemaUploadFun = (rows: Array<any>) => Promise<Array<any>>;
+class MyUploadTemplate extends SchemaUploadTemplate {
+    protected getSheetSchema() {
+        return mySheetSchema;
+    }
+
+    protected async uploadData(rows) {
+        // 上传逻辑
+    }
+}
 ```
 
 #### SchemaEncodingTemplate
 
+抽象编码类，基于 SheetSchema 简化实现。
+
 ```typescript
-class SchemaEncodingTemplate extends BaseEncodingTemplate {
-    constructor(
-        schema: SheetSchema,
-        encodeFunction: SchemaEncodeFun,
-        validateFunction?: SchemaValidateFun
-    )
+abstract class SchemaEncodingTemplate extends BaseEncodingTemplate {
+    // 需要实现的抽象方法
+    protected abstract getSheetSchema(): SheetSchema;
+    protected abstract getEncodeFunction(): SchemaEncodeFun;
+
+    // 可选重写的方法
+    protected getValidateFunction(): SchemaValidateFun | undefined {
+        return undefined;
+    }
+
+    // 生成并下载模板（新增）
+    async downloadTemplate(
+        filename?: string,
+        sampleData?: Array<any>
+    ): Promise<void>
+
+    // 获取列的下拉选项（新增）
+    getDropdownOptions(optionsName: string): string[]
 
     // 获取列映射（表头文本 -> 字段名）
     getColumnMapping(): Map<string, string>
@@ -388,13 +638,30 @@ class SchemaEncodingTemplate extends BaseEncodingTemplate {
 }
 ```
 
-**SchemaEncodeFun 类型：**
+**使用方式：**
 ```typescript
-type SchemaEncodeFun = (rows: Array<any>) => Promise<Array<any>>;
+class MyEncodingTemplate extends SchemaEncodingTemplate {
+    protected getSheetSchema() {
+        return mySheetSchema;
+    }
+
+    protected getEncodeFunction() {
+        return async (rows) => {
+            // 编码逻辑
+        };
+    }
+}
+
+// 使用
+const template = new MyEncodingTemplate();
+
+// 生成模板
+await template.downloadTemplate('my-template');
 ```
 
-**SchemaValidateFun 类型：**
+**类型定义：**
 ```typescript
+type SchemaEncodeFun = (rows: Array<any>) => Promise<Array<any>>;
 type SchemaValidateFun = (row: any) => ValidationResult | Promise<ValidationResult>;
 
 interface ValidationResult {
@@ -404,10 +671,12 @@ interface ValidationResult {
 }
 ```
 
-#### SchemaExporter
+#### SchemaHelper
+
+Schema 工具类，提供所有 Schema 相关操作。
 
 ```typescript
-class SchemaExporter {
+class SchemaHelper {
     constructor(schema: SheetSchema)
 
     // 生成并下载模板
@@ -421,6 +690,14 @@ class SchemaExporter {
 
     // 转换文本为键值
     textToKey(text: string, optionsName: string): string | undefined
+
+    // 转换键值为文本
+    keyToText(key: any, optionsName: string): string
+
+    // 属性提取
+    extractAttributes(workbook, sheetName): Record<string, any>
+    getAttributes(): Record<string, any>
+    getAttribute(name: string): any
 }
 ```
 
@@ -504,22 +781,18 @@ const orderSheetSchema: SheetSchema = {
         batchId: {
             col: 1,
             row: 0,
-            labelCol: 0,    // 标签在 A1
-            labelRow: 0,
             type: 'string'
         },
-        // 部门在单元格 B2
+        // 部门在单元格 B2（列1，行1）
         department: {
             col: 1,
             row: 1,
-            labelText: '部门',  // 使用固定标签文本
             type: 'string'
         },
-        // 订单日期在单元格 D1
+        // 订单日期在单元格 D1（列3，行0）
         orderDate: {
             col: 3,
             row: 0,
-            labelText: '订单日期',
             type: 'date'
         }
     }
@@ -530,13 +803,15 @@ const orderSheetSchema: SheetSchema = {
 
 ```
      A           B           C           D
-1   批次号：     2024-BATCH-001           订单日期：    2024-01-15
-2   部门：       销售部
+1               2024-BATCH-001           2024-01-15
+2               销售部
 3
 4   产品编号     数量
 5   PROD001     100
 6   PROD002     200
 ```
+
+**注意：** 属性名称（如 `batchId`、`department`、`orderDate`）将成为 `attrs` 对象的键。Excel 文件中属性标签（如"批次号："、"部门："）应该在模板中手动添加。
 
 #### 使用提取的属性
 
@@ -610,7 +885,7 @@ const encodingTemplate = new SchemaEncodingTemplate(
 
 #### 导出模板中的单元格合并
 
-使用 `SchemaExporter` 生成 Excel 模板时，可以通过 `colSpan` 和 `rowSpan` 合并属性值的单元格：
+使用 `SchemaHelper` 生成 Excel 模板时，可以通过 `colSpan` 和 `rowSpan` 合并属性值的单元格：
 
 ```typescript
 const orderSheetSchema: SheetSchema = {
@@ -647,8 +922,9 @@ const orderSheetSchema: SheetSchema = {
 };
 
 // 生成带合并单元格的模板
-const exporter = new SchemaExporter(orderSheetSchema);
-await exporter.downloadTemplate('order-template');
+import {SchemaHelper} from '@ticatec/excel-wizard';
+const helper = new SchemaHelper(orderSheetSchema);
+await helper.downloadTemplate('order-template');
 ```
 
 **Excel 布局效果：**
@@ -661,7 +937,314 @@ await exporter.downloadTemplate('order-template');
 5   产品编号     数量
 ```
 
-**注意：** 单元格合并仅适用于模板生成（`SchemaExporter`），不适用于数据导入/解析。
+**注意：** 单元格合并仅适用于模板生成，不适用于数据导入/解析。
+
+### 模板装饰（TemplateDecoration）
+
+使用 `TemplateDecoration` 为生成的 Excel 模板添加固定的装饰性元素，如标题、说明文字等。
+
+```typescript
+import type {SheetSchema, TemplateDecoration} from '@ticatec/excel-wizard';
+
+const schemaWithDecoration: SheetSchema = {
+    headerRowNum: 3,
+    columns: [
+        {field: 'name', text: '产品名称', width: 200},
+        {field: 'price', text: '价格', width: 120}
+    ],
+    // 添加模板装饰
+    decorations: [
+        {
+            col: 1,
+            row: 0,
+            colSpan: 4,
+            text: '产品批量导入表',
+            fontSize: 18,
+            bold: true,
+            color: 'FFFFFF',
+            fillColor: '333333',
+            align: 'center'
+        },
+        {
+            col: 1,
+            row: 1,
+            colSpan: 2,
+            rowSpan: 2,
+            text: '填写说明：\n1. 产品名称必填\n2. 价格必须是数字',
+            fontSize: 11,
+            italic: true,
+            fillColor: 'FFF9E7',
+            wrapText: true,
+            verticalAlign: 'top'
+        },
+        {
+            col: 3,
+            row: 1,
+            text: '导入日期：',
+            bold: true
+        },
+        {
+            col: 4,
+            row: 1,
+            text: new Date().toLocaleDateString('zh-CN')
+        }
+    ]
+};
+```
+
+**TemplateDecoration 接口：**
+
+```typescript
+interface TemplateDecoration {
+    col: number;               // 起始列索引（0开始）
+    row: number;               // 起始行索引（0开始）
+    text?: string;             // 单元格文本
+    colSpan?: number;          // 列跨度（合并列数）
+    rowSpan?: number;          // 行跨度（合并行数）
+    fontSize?: number;         // 字体大小
+    bold?: boolean;            // 是否粗体
+    italic?: boolean;          // 是否斜体
+    color?: string;            // 字体颜色（支持 RGB 或 ARGB）
+    fillColor?: string;        // 背景颜色（支持 RGB 或 ARGB）
+    align?: 'left' | 'center' | 'right';        // 水平对齐
+    verticalAlign?: 'top' | 'middle' | 'bottom'; // 垂直对齐
+    wrapText?: boolean;        // 是否自动换行
+}
+```
+
+**颜色格式说明：**
+
+- **RGB 格式**（推荐）：`#333333`、`#FF0000` - 6位十六进制
+- **ARGB 格式**：`#FF333333` - 8位十六进制（前2位为透明度）
+- **简写格式**：`#F00` - 3位十六进制，自动扩展为 `#FF0000`
+
+系统会自动将 RGB 格式转换为 ARGB 格式（添加 `FF` 透明度前缀）。
+
+### 列装饰（ColumnDecoration）
+
+使用 `ColumnDecoration` 为数据列的单元格定义样式，包括字体、背景、对齐等。
+
+```typescript
+import type {SheetSchema, ColumnDecoration} from '@ticatec/excel-wizard';
+
+const schemaWithColumnDecoration: SheetSchema = {
+    headerRowNum: 0,
+    showHint: true,
+    columns: [
+        {
+            field: 'name',
+            text: '产品名称',
+            width: 200,
+            decoration: {
+                fontSize: 12,
+                bold: true,
+                fillColor: 'F0F0F0'
+            }
+        },
+        {
+            field: 'price',
+            text: '价格',
+            width: 120,
+            align: 'right',
+            decoration: {
+                fontSize: 11,
+                color: 'FF0000',
+                format: '¥#,##0.00',
+                align: 'right'  // 覆盖列的 align
+            }
+        },
+        {
+            field: 'status',
+            text: '状态',
+            width: 100,
+            decoration: {
+                fillColor: 'E8F5E9',
+                align: 'center',
+                verticalAlign: 'middle'
+            }
+        }
+    ]
+};
+```
+
+**ColumnDecoration 接口：**
+
+```typescript
+interface ColumnDecoration {
+    width?: number;           // 列宽（像素）
+    fontSize?: number;        // 字体大小
+    bold?: boolean;           // 是否粗体
+    italic?: boolean;         // 是否斜体
+    color?: string;           // 字体颜色
+    fillColor?: string;       // 背景颜色
+    align?: 'left' | 'center' | 'right';        // 水平对齐
+    verticalAlign?: 'top' | 'middle' | 'bottom'; // 垂直对齐
+    wrapText?: boolean;       // 是否自动换行
+    format?: string;          // 数字格式（如：'0.00', '¥#,##0.00'）
+}
+```
+
+**对齐优先级规则：**
+
+```
+decoration.align > col.align > 'left'（默认）
+```
+
+如果列定义了 `decoration.align`，则使用装饰的对齐方式；
+否则使用列的 `col.align`；
+最后默认为左对齐。
+
+### 访问提取的属性（attrs）
+
+从上传的 Excel 文件中提取工作表级别的元数据，并通过 `attrs` 对象访问。
+
+```typescript
+import {SchemaUploadTemplate} from '@ticatec/excel-wizard';
+import type {SheetSchema} from '@ticatec/excel-wizard';
+
+const orderSchema: SheetSchema = {
+    headerRowNum: 2,
+    columns: [
+        {field: 'productId', text: '产品编号', width: 120},
+        {field: 'quantity', text: '数量', width: 100}
+    ],
+    attributes: {
+        // 属性名 'batchId' 将成为 attrs.batchId 的键
+        batchId: {
+            col: 1,
+            row: 0,
+            type: 'string'
+        },
+        // 属性名 'uploadDate' 将成为 attrs.uploadDate 的键
+        uploadDate: {
+            col: 3,
+            row: 0,
+            type: 'date'
+        }
+    }
+};
+
+class OrderUploadTemplate extends SchemaUploadTemplate {
+    constructor() {
+        super(orderSchema);
+    }
+
+    protected async uploadData(rows: Array<any>) {
+        // 直接通过 attrs 对象访问提取的属性
+        const batchId = this.attrs.batchId;
+        const uploadDate = this.attrs.uploadDate;
+
+        console.log('批次号：', batchId);      // 例如：'2024-BATCH-001'
+        console.log('上传日期：', uploadDate); // 例如：Date 对象
+
+        // 使用属性进行上传
+        const response = await fetch('/api/orders/upload', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                batchId,
+                uploadDate,
+                items: rows
+            })
+        });
+
+        return response.json();
+    }
+}
+```
+
+**访问方式：**
+
+1. **通过 `attrs` 对象直接访问**（推荐）：
+   ```typescript
+   const batchId = template.attrs.batchId;
+   const date = template.attrs.uploadDate;
+   ```
+
+2. **通过 `getAttribute()` 方法访问**：
+   ```typescript
+   const batchId = template.getAttribute('batchId');
+   const date = template.getAttribute('uploadDate');
+   ```
+
+3. **获取所有属性**：
+   ```typescript
+   const allAttrs = template.getAttributes();
+   // 返回：{batchId: '2024-BATCH-001', uploadDate: Date}
+   ```
+
+**属性类型支持：**
+
+- `'string'` - 字符串（默认）
+- `'number'` - 数字
+- `'boolean'` - 布尔值
+- `'date'` - 日期
+- `'datetime'` - 日期时间
+
+### 数据行位置计算规则
+
+数据行的起始位置由 `headerRowNum` 和 `showHint` 共同决定：
+
+```
+dataStartRow = headerRowNum + (showHint ? 2 : 1)
+```
+
+**示例：**
+
+```typescript
+// 情况 1：无提示行
+const schema1: SheetSchema = {
+    headerRowNum: 0,
+    showHint: false,  // 或不设置
+    columns: [...]
+};
+// 表头在第 1 行（行0）
+// 数据从第 2 行开始（行1）
+
+// 情况 2：有提示行
+const schema2: SheetSchema = {
+    headerRowNum: 0,
+    showHint: true,
+    columns: [...]
+};
+// 表头在第 1 行（行0）
+// 提示在第 2 行（行1）
+// 数据从第 3 行开始（行2）
+
+// 情况 3：表头不在第一行，无提示
+const schema3: SheetSchema = {
+    headerRowNum: 2,
+    showHint: false,
+    columns: [...]
+};
+// 表头在第 3 行（行2）
+// 数据从第 4 行开始（行3）
+
+// 情况 4：表头不在第一行，有提示
+const schema4: SheetSchema = {
+    headerRowNum: 2,
+    showHint: true,
+    columns: [...]
+};
+// 表头在第 3 行（行2）
+// 提示在第 4 行（行3）
+// 数据从第 5 行开始（行4）
+```
+
+**Excel 布局示例：**
+
+```
+无提示行 (showHint: false):
+Row 1: [表头]           <- headerRowNum
+Row 2: [数据起始行]     <- headerRowNum + 1
+
+有提示行 (showHint: true):
+Row 1: [表头]           <- headerRowNum
+Row 2: [提示文本]       <- headerRowNum + 1
+Row 3: [数据起始行]     <- headerRowNum + 2
+```
+
+**注意：** 所有行号都是 0 开始索引。
 
 ---
 
@@ -669,24 +1252,86 @@ await exporter.downloadTemplate('order-template');
 
 使用 `@ticatec/i18n` 实现自动语言切换。可通过扩展资源文件进行定制：
 
-**中文：**
+**完整的国际化资源文件：**
+
+- [English (i18n_en.json)](./documents/i18n_en.json)
+- [中文 (i18n_zh.json)](./documents/i18n_zh.json)
+
+**关键文本资源：**
+
+**English:**
 ```json
 {
-    "batchUploading": {
-        "status": {
-            "pending": "待上传",
-            "uploading": "正在上传...",
-            "successful": "成功",
-            "fail": "失败"
-        },
-        "parsing": "正在解析文件...",
-        "parseFailure": "无法解析文件：{{name}}",
-        "button": {
-            "upload": "上传",
-            "save": "保存错误数据",
-            "confirm": "确定"
-        }
-    }
+  "excelWizard": {
+    "status": {
+      "pending": "To upload",
+      "uploading": "Uploading...",
+      "successful": "Success",
+      "fail": "Failure"
+    },
+    "parsing": "Parsing file...",
+    "parseFailure": "Cannot parse file: {{name}}",
+    "waitUploading": "Cannot exit during uploading!",
+    "button": {
+      "upload": "Upload",
+      "save": "Save error data",
+      "open": "Open",
+      "confirm": "Confirm"
+    },
+    "titleChooseSheet": "Choose a sheet",
+    "errorTitle": "Error",
+    "sheetName": "Abnormal data",
+    "labelStatus": "Status",
+    "labelValid": "Validity",
+    "textValid": "Yes",
+    "textInvalid": "No",
+    "labelHint": "Hint",
+    "uploadStatText": "Total: {{total}}, Success: {{success}}, Failed: {{failed}}",
+    "buttonExportException": "Error report",
+    "buttonExportFull": "Full report",
+    "buttonReset": "Reset",
+    "dragDropText": "Drag and drop your Excel file here",
+    "dragDropSubText": "or click to browse",
+    "dragDropFileType": "Supports .xlsx and .xls files"
+  }
+}
+```
+
+**中文:**
+```json
+{
+  "excelWizard": {
+    "status": {
+      "pending": "待上传",
+      "uploading": "正在上传...",
+      "successful": "成功",
+      "fail": "失败"
+    },
+    "parsing": "正在解析文件...",
+    "parseFailure": "无法解析文件：{{name}}",
+    "waitUploading": "上传期间无法退出！",
+    "button": {
+      "upload": "上传",
+      "save": "保存错误数据",
+      "open": "打开",
+      "confirm": "确定"
+    },
+    "titleChooseSheet": "选择工作表",
+    "errorTitle": "错误",
+    "sheetName": "异常数据",
+    "labelStatus": "状态",
+    "labelValid": "有效性",
+    "textValid": "是",
+    "textInvalid": "否",
+    "labelHint": "提示",
+    "uploadStatText": "总计：{{total}}，成功：{{success}}，失败：{{failed}}",
+    "buttonExportException": "错误报告",
+    "buttonExportFull": "完整报告",
+    "buttonReset": "重置",
+    "dragDropText": "将 Excel 文件拖放到此处",
+    "dragDropSubText": "或点击浏览",
+    "dragDropFileType": "支持 .xlsx 和 .xls 文件"
+  }
 }
 ```
 
@@ -721,32 +1366,28 @@ MIT License © Ticatec
 
 ### v0.2.0
 - ✨ 新增 SchemaUploadTemplate 和 SchemaEncodingTemplate
-- ✨ 新增 SchemaExporter 用于模板生成
 - ✨ 新增 schema/SheetSchema 类型定义
-- ✨ 新增 SchemaHelper 工具类
+- ✨ 新增 SchemaHelper 工具类（包含模板生成功能）
 - ✨ 新增 Sheet 级别属性提取功能
-- 🗑️ 移除未使用的 `BaseExportTemplate`（请改用 `SchemaExporter`）
+- 🗑️ 移除未使用的 `BaseExportTemplate`
+- 🗑️ 移除 `SchemaExporter`（功能已合并到 SchemaHelper）
 - 🐛 修复多个类型导出问题
 - 📚 更新文档
 
-**包名更改：** 此包之前发布为 `@ticatec/batch-data-uploader`。如果升级，请更新您的导入：
-```typescript
-// 旧版本
-import {SchemaUploadTemplate} from '@ticatec/batch-data-uploader';
-
-// 新版本
-import {SchemaUploadTemplate} from '@ticatec/excel-wizard';
-```
-
-**重大变更：** `BaseExportTemplate` 已被移除。请使用 `SchemaExporter` 进行 Excel 模板生成：
+**重大变更：** `BaseExportTemplate` 已被移除。请使用 `SchemaHelper` 进行 Excel 模板生成：
 ```typescript
 // 旧版本（已不再可用）
 import BaseExportTemplate from '@ticatec/excel-wizard/output/BaseExportTemplate';
 
 // 新版本（推荐）
-import {SchemaExporter} from '@ticatec/excel-wizard';
-const exporter = new SchemaExporter(schema);
-await exporter.downloadTemplate('文件名');
+import {SchemaHelper} from '@ticatec/excel-wizard';
+const helper = new SchemaHelper(schema);
+await helper.downloadTemplate('文件名');
+```
+
+或者使用模板实例：
+```typescript
+await template.downloadTemplate('文件名');
 ```
 
 ### v0.1.x

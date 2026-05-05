@@ -83,6 +83,100 @@ npm install exceljs
 
 ## 🚀 Quick Start
 
+### Choose the Right Component
+
+`@ticatec/excel-wizard` provides two core wizard components for different use cases:
+
+#### FileUploadWizard + SchemaUploadTemplate
+
+**Use Case: Batch Data Upload to Server**
+
+```typescript
+import {FileUploadWizard} from '@ticatec/excel-wizard';
+import {SchemaUploadTemplate} from '@ticatec/excel-wizard';
+
+// Typical workflow:
+// 1. User uploads Excel file
+// 2. Client-side parsing and validation
+// 3. Batch upload to server
+// 4. Display upload progress and results
+// 5. Export failed records for re-upload
+
+window.Dialog.showModal(FileUploadWizard, {
+    template: uploadTemplate,
+    width: '1240px',
+    title: 'Batch Upload Products'
+});
+```
+
+**Features:**
+- ✅ Complete server upload workflow
+- ✅ Batch upload with progress tracking
+- ✅ Automatic error handling and retry
+- ✅ Export failed data for correction and re-upload
+- ✅ Ideal for scenarios requiring server validation and storage
+
+**Example Scenarios:**
+- Batch product catalog import
+- Bulk user account creation
+- Batch order data upload
+- Database initialization and migration
+
+#### EncodingWizard + SchemaEncodingTemplate
+
+**Use Case: Read Excel Data and Fill Forms (Pure Client-Side)**
+
+```typescript
+import {EncodingWizard} from '@ticatec/excel-wizard';
+import {SchemaEncodingTemplate} from '@ticatec/excel-wizard';
+
+// Typical workflow:
+// 1. User selects local Excel file
+// 2. Client-side parsing and field mapping
+// 3. Data transformation and formatting
+// 4. Direct form filling or local data structure population
+// 5. No server interaction, pure client-side processing
+
+window.Dialog.showModal(EncodingWizard, {
+    template: encodingTemplate,
+    width: '1240px',
+    title: 'Import Data from Excel',
+    confirmCallback: (encodedData) => {
+        // Process encoded data
+        console.log('Imported data:', encodedData);
+        // Fill forms, update local state, etc.
+        return true;  // Close dialog
+    }
+});
+```
+
+**Features:**
+- ✅ Pure client-side processing, **no server interaction required**
+- ✅ Flexible field mapping and data transformation
+- ✅ Support for custom validation logic
+- ✅ Optional data preprocessing and formatting
+- ✅ Ideal for local data processing and form filling
+
+**Example Scenarios:**
+- Import configuration parameters from Excel
+- Batch fill form fields
+- Local data report generation
+- Offline data processing and transformation
+- Read initialization data from template files
+
+**Comparison Summary:**
+
+| Feature | FileUploadWizard | EncodingWizard |
+|---------|------------------|----------------|
+| **Primary Use** | Batch upload to server | Local data import and processing |
+| **Server Interaction** | Required | **Not required** |
+| **Data Processing** | Validate + Upload | Map + Transform |
+| **Progress Tracking** | Upload progress | Processing progress |
+| **Error Handling** | Retry + Export failed data | Validate + Prompt |
+| **Typical Scenarios** | Database batch import | Form filling, local processing |
+
+---
+
 ### Approach 1: Schema-Based (Recommended)
 
 Schema-based approach eliminates the need for inheritance. Simply define your schema and pass functions to the constructor.
@@ -668,24 +762,86 @@ await exporter.downloadTemplate('order-template');
 
 Uses `@ticatec/i18n` for automatic language switching. Extend resources for customization:
 
+**Complete i18n Resource Files:**
+
+- [English (i18n_en.json)](./documents/i18n_en.json)
+- [中文 (i18n_zh.json)](./documents/i18n_zh.json)
+
+**Key Text Resources:**
+
 **English:**
 ```json
 {
-    "batchUploading": {
-        "status": {
-            "pending": "Pending",
-            "uploading": "Uploading...",
-            "successful": "Success",
-            "fail": "Failure"
-        },
-        "parsing": "Parsing file...",
-        "parseFailure": "Cannot parse file: {{name}}",
-        "button": {
-            "upload": "Upload",
-            "save": "Save error data",
-            "confirm": "Confirm"
-        }
-    }
+  "excelWizard": {
+    "status": {
+      "pending": "To upload",
+      "uploading": "Uploading...",
+      "successful": "Success",
+      "fail": "Failure"
+    },
+    "parsing": "Parsing file...",
+    "parseFailure": "Cannot parse file: {{name}}",
+    "waitUploading": "Cannot exit during uploading!",
+    "button": {
+      "upload": "Upload",
+      "save": "Save error data",
+      "open": "Open",
+      "confirm": "Confirm"
+    },
+    "titleChooseSheet": "Choose a sheet",
+    "errorTitle": "Error",
+    "sheetName": "Abnormal data",
+    "labelStatus": "Status",
+    "labelValid": "Validity",
+    "textValid": "Yes",
+    "textInvalid": "No",
+    "labelHint": "Hint",
+    "uploadStatText": "Total: {{total}}, Success: {{success}}, Failed: {{failed}}",
+    "buttonExportException": "Error report",
+    "buttonExportFull": "Full report",
+    "buttonReset": "Reset",
+    "dragDropText": "Drag and drop your Excel file here",
+    "dragDropSubText": "or click to browse",
+    "dragDropFileType": "Supports .xlsx and .xls files"
+  }
+}
+```
+
+**中文:**
+```json
+{
+  "excelWizard": {
+    "status": {
+      "pending": "待上传",
+      "uploading": "正在上传...",
+      "successful": "成功",
+      "fail": "失败"
+    },
+    "parsing": "正在解析文件...",
+    "parseFailure": "无法解析文件：{{name}}",
+    "waitUploading": "上传期间无法退出！",
+    "button": {
+      "upload": "上传",
+      "save": "保存错误数据",
+      "open": "打开",
+      "confirm": "确定"
+    },
+    "titleChooseSheet": "选择工作表",
+    "errorTitle": "错误",
+    "sheetName": "异常数据",
+    "labelStatus": "状态",
+    "labelValid": "有效性",
+    "textValid": "是",
+    "textInvalid": "否",
+    "labelHint": "提示",
+    "uploadStatText": "总计：{{total}}，成功：{{success}}，失败：{{failed}}",
+    "buttonExportException": "错误报告",
+    "buttonExportFull": "完整报告",
+    "buttonReset": "重置",
+    "dragDropText": "将 Excel 文件拖放到此处",
+    "dragDropSubText": "或点击浏览",
+    "dragDropFileType": "支持 .xlsx 和 .xls 文件"
+  }
 }
 ```
 
@@ -728,10 +884,10 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 - 🐛 Fixed various type export issues
 - 📚 Updated documentation
 
-**Package renamed:** This package was previously published as `@ticatec/batch-data-uploader`. If upgrading, please update your imports:
+**Package renamed:** This package was previously published as `@ticatec/excel-wizard`. If upgrading, please update your imports:
 ```typescript
 // Old
-import {SchemaUploadTemplate} from '@ticatec/batch-data-uploader';
+import {SchemaUploadTemplate} from '@ticatec/excel-wizard';
 
 // New
 import {SchemaUploadTemplate} from '@ticatec/excel-wizard';

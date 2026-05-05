@@ -17,7 +17,7 @@ The schema-based approach allows you to:
 First, create a `SheetSchema` that defines your Excel structure:
 
 ```typescript
-import SheetSchema, { OptionsList } from '@ticatec/batch-data-uploader/schema/SheetSchema';
+import SheetSchema, { OptionsList } from '@ticatec/excel-wizard/schema/SheetSchema';
 
 // Define options for dropdown columns
 const statusOptions: OptionsList = {
@@ -99,17 +99,20 @@ const userSchema: SheetSchema = {
 
 ## Using SchemaUploadTemplate
 
-Create an upload template by extending `SchemaUploadTemplate`:
+Create an upload template by extending `SchemaUploadTemplate` and implementing abstract methods:
 
 ```typescript
-import SchemaUploadTemplate from '@ticatec/batch-data-uploader/SchemaUploadTemplate';
-import type SheetSchema from '@ticatec/batch-data-uploader/schema/SheetSchema';
+import SchemaUploadTemplate from '@ticatec/excel-wizard/SchemaUploadTemplate';
+import type SheetSchema from '@ticatec/excel-wizard/schema/SheetSchema';
+import userSchema from './userSchema';
 
 class UserUploadTemplate extends SchemaUploadTemplate {
-    constructor(schema: SheetSchema) {
-        super(schema);
+    // Implement abstract method to provide schema
+    protected getSheetSchema(): SheetSchema {
+        return userSchema;
     }
 
+    // Implement abstract method for upload logic
     protected async uploadData(list: Array<any>): Promise<Array<any>> {
         // Implement your upload logic
         const response = await fetch('/api/users/batch', {
@@ -128,8 +131,8 @@ class UserUploadTemplate extends SchemaUploadTemplate {
     }
 }
 
-// Usage
-const template = new UserUploadTemplate(userSchema);
+// Usage - no constructor arguments needed
+const template = new UserUploadTemplate();
 
 // Get extracted attributes
 const uploadedBy = template.getAttribute('uploadedBy');
@@ -138,65 +141,73 @@ const uploadDate = template.getAttribute('uploadDate');
 
 ## Using SchemaEncodingTemplate
 
-Create an encoding template for field mapping and validation:
+Create an encoding template for field mapping and validation by extending `SchemaEncodingTemplate` and implementing abstract methods:
 
 ```typescript
-import SchemaEncodingTemplate, { ValidationResult } from '@ticatec/batch-data-uploader/SchemaEncodingTemplate';
-import type SheetSchema from '@ticatec/batch-data-uploader/schema/SheetSchema';
+import SchemaEncodingTemplate, { ValidationResult, SchemaEncodeFun } from '@ticatec/excel-wizard/SchemaEncodingTemplate';
+import type SheetSchema from '@ticatec/excel-wizard/schema/SheetSchema';
+import userSchema from './userSchema';
 
 class UserEncodingTemplate extends SchemaEncodingTemplate {
-    constructor(schema: SheetSchema) {
-        super(schema);
+    // Implement abstract method to provide schema
+    protected getSheetSchema(): SheetSchema {
+        return userSchema;
     }
 
-    protected async encodeData(rows: Array<any>): Promise<Array<any>> {
-        // Fetch data from server for enrichment
-        const usernames = rows.map(row => row.username);
-        const response = await fetch('/api/users/lookup', {
-            method: 'POST',
-            body: JSON.stringify({ usernames })
-        });
-        const existingUsers = await response.json();
+    // Implement abstract method for encoding logic
+    protected getEncodeFunction(): SchemaEncodeFun {
+        return async (rows: Array<any>) => {
+            // Fetch data from server for enrichment
+            const usernames = rows.map(row => row.username);
+            const response = await fetch('/api/users/lookup', {
+                method: 'POST',
+                body: JSON.stringify({ usernames })
+            });
+            const existingUsers = await response.json();
 
-        // Merge existing data with new data
-        return rows.map(row => {
-            const existing = existingUsers.find(u => u.username === row.username);
+            // Merge existing data with new data
+            return rows.map(row => {
+                const existing = existingUsers.find(u => u.username === row.username);
+                return {
+                    ...row,
+                    id: existing?.id,
+                    exists: !!existing
+                };
+            });
+        };
+    }
+
+    // Optionally override validation method
+    protected getValidateFunction(): (row: any) => ValidationResult {
+        return (row: any): ValidationResult => {
+            const errors: string[] = [];
+
+            // Validate email format
+            if (!row.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
+                errors.push('Invalid email format');
+            }
+
+            // Validate username length
+            if (!row.username || row.username.length < 3) {
+                errors.push('Username must be at least 3 characters');
+            }
+
+            // Check for duplicate user
+            if (row.exists) {
+                errors.push('Username already exists');
+            }
+
             return {
-                ...row,
-                id: existing?.id,
-                exists: !!existing
+                valid: errors.length === 0,
+                hint: errors.length === 0 ? 'Ready to upload' : 'Please fix errors',
+                error: errors.length > 0 ? errors.join('; ') : undefined
             };
-        });
-    }
-
-    protected validateData(row: any): ValidationResult | Promise<ValidationResult> {
-        const errors: string[] = [];
-
-        // Validate email format
-        if (!row.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
-            errors.push('Invalid email format');
-        }
-
-        // Validate username length
-        if (!row.username || row.username.length < 3) {
-            errors.push('Username must be at least 3 characters');
-        }
-
-        // Check for duplicate user
-        if (row.exists) {
-            errors.push('Username already exists');
-        }
-
-        return {
-            valid: errors.length === 0,
-            hint: errors.length === 0 ? 'Ready to upload' : 'Please fix errors',
-            error: errors.length > 0 ? errors.join('; ') : undefined
         };
     }
 }
 
-// Usage
-const encodingTemplate = new UserEncodingTemplate(userSchema);
+// Usage - no constructor arguments needed
+const encodingTemplate = new UserEncodingTemplate();
 
 // Check column mapping
 if (encodingTemplate.hasMapping('Username')) {
@@ -211,59 +222,85 @@ if (encodingTemplate.valid) {
 
 ## Generating Excel Templates
 
-Use `SchemaExporter` to generate downloadable Excel templates with dropdown validation:
+You can now generate Excel templates directly from template instances:
 
 ```typescript
-import { SchemaExporter } from '@ticatec/batch-data-uploader/SchemaExporter';
-import type SheetSchema from '@ticatec/batch-data-uploader/schema/SheetSchema';
+import SchemaUploadTemplate from '@ticatec/excel-wizard/SchemaUploadTemplate';
+import userSchema from './userSchema';
 
-// Create exporter
-const exporter = new SchemaExporter(userSchema);
+class UserUploadTemplate extends SchemaUploadTemplate {
+    protected getSheetSchema() {
+        return userSchema;
+    }
+
+    protected async uploadData(rows: Array<any>) {
+        // Your upload logic
+    }
+}
+
+const template = new UserUploadTemplate();
 
 // Download empty template
-await exporter.downloadTemplate('user-import-template');
+await template.downloadTemplate('user-import-template');
 
 // Download template with sample data
 const sampleData = [
     { username: 'john_doe', email: 'john@example.com', status: 'ACTIVE', role: 'USER', department: 'IT' },
     { username: 'jane_smith', email: 'jane@example.com', status: 'PENDING', role: 'ADMIN', department: 'HR' }
 ];
-await exporter.downloadTemplate('user-import-template', sampleData);
+await template.downloadTemplate('user-import-template', sampleData);
 
 // Get dropdown options
-const statusOptions = exporter.getDropdownOptions('status');
+const statusOptions = template.getDropdownOptions('status');
 // Returns: ['Active', 'Inactive', 'Pending']
 
 // Convert text to key
-const statusCode = exporter.textToKey('Active', 'status');
+const statusCode = template.textToKey('Active', 'status');
 // Returns: 'ACTIVE'
+```
+
+Or use `SchemaHelper` directly:
+
+```typescript
+import { SchemaHelper } from '@ticatec/excel-wizard';
+
+const helper = new SchemaHelper(userSchema);
+
+// Download template
+await helper.downloadTemplate('user-import-template');
+
+// Get dropdown options
+const statusOptions = helper.getDropdownOptions('status');
 ```
 
 ## Complete Example with Svelte Component
 
 ```svelte
 <script lang="ts">
-    import FileUploadWizard from '@ticatec/batch-data-uploader/FileUploadWizard';
-    import SchemaUploadTemplate from '@ticatec/batch-data-uploader/SchemaUploadTemplate';
-    import { SchemaExporter } from '@ticatec/batch-data-uploader/SchemaExporter';
-    import type SheetSchema from '@ticatec/batch-data-uploader/schema/SheetSchema';
+    import FileUploadWizard from '@ticatec/excel-wizard/FileUploadWizard';
+    import SchemaUploadTemplate from '@ticatec/excel-wizard/SchemaUploadTemplate';
     import userSchema from './userSchema';
 
     class UserUploadTemplate extends SchemaUploadTemplate {
-        constructor() {
-            super(userSchema);
+        protected getSheetSchema() {
+            return userSchema;
         }
 
         protected async uploadData(list: Array<any>) {
             // Your upload logic
+            const response = await fetch('/api/users/batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(list)
+            });
+            return await response.json();
         }
     }
 
     let template = new UserUploadTemplate();
 
     async function downloadTemplate() {
-        const exporter = new SchemaExporter(userSchema);
-        await exporter.downloadTemplate('user-template');
+        await template.downloadTemplate('user-template');
     }
 </script>
 
@@ -301,13 +338,83 @@ const customOptions: OptionsList = {
 };
 ```
 
+### Custom Parser and Formatter
+
+For complex display formats like "CODE - Description", you can use custom parser and formatter functions:
+
+```typescript
+const categoryOptions: OptionsList = {
+    list: [
+        { code: 'ELEC', text: 'Electronics' },
+        { code: 'CLOT', text: 'Clothing' },
+        { code: 'FOOD', text: 'Food' }
+    ],
+    keyName: 'code',
+    textName: 'text',
+
+    // Parse "ELEC - Electronics" → "ELEC" during upload
+    parser: (value) => {
+        const parts = String(value).split(' - ');
+        return parts[0].trim();
+    },
+
+    // Format "ELEC" → "ELEC - Electronics" during download
+    formatter: (key, list) => {
+        const item = list.find(i => i.code === key);
+        return item ? `${key} - ${item.text}` : key;
+    }
+};
+
+const schema: SheetSchema = {
+    headerRowNum: 0,
+    dataRowNum: 1,
+    options: {
+        categories: categoryOptions
+    },
+    columns: [
+        {
+            field: 'category',
+            text: 'Category',
+            width: 200,
+            optionsName: 'categories'  // Uses parser/formatter from options
+        }
+    ]
+};
+```
+
+**Parser Priority:**
+
+When a column has both `optionsName` and a `parser` in ColumnSchema:
+
+1. **Highest Priority**: `OptionsList.parser` (if optionsName is specified and OptionsList.parser exists)
+2. **Medium Priority**: `ColumnSchema.parser` (if specified)
+3. **Low Priority**: Default options text-to-key lookup (if optionsName is specified)
+4. **No Conversion**: When neither parser nor optionsName is specified
+
+For options-based columns, prefer defining parser in `OptionsList` rather than `ColumnSchema`:
+
+```typescript
+// ✅ Recommended: Use OptionsList.parser for options columns
+const categoryOptions: OptionsList = {
+    list: [...],
+    parser: (value) => value.split(' - ')[0]
+};
+
+// ❌ Avoid: ColumnSchema.parser is ignored when OptionsList.parser exists
+const column: ColumnSchema = {
+    field: 'category',
+    optionsName: 'categories',
+    parser: (value) => value.split(' - ')[0]  // Ignored if OptionsList.parser exists
+};
+```
+
 ## Attributes Extraction
 
 Extract sheet-level metadata automatically:
 
 ```typescript
 // After parsing, access extracted attributes
-const template = new UserUploadTemplate(userSchema);
+const template = new UserUploadTemplate();
 await template.setFile(file);
 await template.parseSheet();
 

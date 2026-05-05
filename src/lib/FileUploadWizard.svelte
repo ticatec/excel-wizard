@@ -15,6 +15,7 @@
         parseExcelFile,
         FILE_ACCEPT
     } from "$lib/wizardUtils";
+    import DropZone from "$lib/DropZone.svelte";
 
     export let title: string;
     export let width: string = "800px";
@@ -171,7 +172,8 @@
             return i18nUtils.formatText(i18nRes.uploadStatText, stats);
         }
         return '';
-    })();</script>
+    })();
+</script>
 
 <Dialog {title} {actions} closeConfirm={confirmCloseDialog}
         content$style="width: {width}; height: {height}; padding: 12px; display: flex; flex-direction: column;">
@@ -183,18 +185,30 @@
         </div>
     {/if}
 
-    <Box style="flex: 1 1 auto; border: 1px solid var(--uniface-editor-border-color, #F8FAFC); width: 100%; height: 100%; cursor: {status == ProcessStatus.Uploading ? 'progress' : 'default'}"
-         round>
-        <DataTable style="width: 100%; height: 100%" {list} {indicatorColumn} {columns}>
-        </DataTable>
-    </Box>
+    {#if status === ProcessStatus.Init}
+        <!-- Drag and Drop Zone -->
+        <DropZone onFileDrop={handleFileChange} height="240px" width="360px" />
+    {:else}
+        <!-- Data Table -->
+        <Box style="flex: 1 1 auto; border: 1px solid var(--uniface-editor-border-color, #F8FAFC); width: 100%; height: 100%; cursor: {status == ProcessStatus.Uploading ? 'progress' : 'default'}"
+             round>
+            <DataTable style="width: 100%; height: 100%" {list} {indicatorColumn} {columns}>
+            </DataTable>
+        </Box>
+    {/if}
 
     <input
-        type="file"
-        bind:this={uploadField}
-        on:change={(e) => handleFileChange(e.target.files?.[0])}
-        style="display: none"
-        accept={FILE_ACCEPT}
+            type="file"
+            bind:this={uploadField}
+            on:change={(e) => {
+            const target = e.target as HTMLInputElement;
+            const file = target.files?.[0];
+            if (file) {
+                handleFileChange(file);
+            }
+        }}
+            style="display: none"
+            accept={FILE_ACCEPT}
     >
 
 </Dialog>

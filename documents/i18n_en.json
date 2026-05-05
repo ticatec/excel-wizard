@@ -1,0 +1,34 @@
+{
+  "excelWizard": {
+    "status": {
+      "pending": "To upload",
+      "uploading": "Uploading...",
+      "successful": "Success",
+      "fail": "Failure"
+    },
+    "parsing": "Parsing file...",
+    "parseFailure": "Cannot parse file: {{name}}",
+    "waitUploading": "Cannot exit during uploading!",
+    "button": {
+      "upload": "Upload",
+      "save": "Save error data",
+      "open": "Open",
+      "confirm": "Confirm"
+    },
+    "titleChooseSheet": "Choose a sheet",
+    "errorTitle": "Error",
+    "sheetName": "Abnormal data",
+    "labelStatus": "Status",
+    "labelValid": "Validity",
+    "textValid": "Yes",
+    "textInvalid": "No",
+    "labelHint": "Hint",
+    "uploadStatText": "Total: {{total}}, Success: {{success}}, Failed: {{failed}}",
+    "buttonExportException": "Error report",
+    "buttonExportFull": "Full report",
+    "buttonReset": "Reset",
+    "dragDropText": "Drag and drop your Excel file here",
+    "dragDropSubText": "or click to browse",
+    "dragDropFileType": "Supports .xlsx and .xls files"
+  }
+}

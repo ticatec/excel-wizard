@@ -1,0 +1,34 @@
+{
+  "excelWizard": {
+    "status": {
+      "pending": "待上传",
+      "uploading": "正在上传...",
+      "successful": "成功",
+      "fail": "失败"
+    },
+    "parsing": "正在解析文件...",
+    "parseFailure": "无法解析文件：{{name}}",
+    "waitUploading": "上传期间无法退出！",
+    "button": {
+      "upload": "上传",
+      "save": "保存错误数据",
+      "open": "打开",
+      "confirm": "确定"
+    },
+    "titleChooseSheet": "选择工作表",
+    "errorTitle": "错误",
+    "sheetName": "异常数据",
+    "labelStatus": "状态",
+    "labelValid": "有效性",
+    "textValid": "是",
+    "textInvalid": "否",
+    "labelHint": "提示",
+    "uploadStatText": "总计：{{total}}，成功：{{success}}，失败：{{failed}}",
+    "buttonExportException": "错误报告",
+    "buttonExportFull": "完整报告",
+    "buttonReset": "重置",
+    "dragDropText": "将 Excel 文件拖放到此处",
+    "dragDropSubText": "或点击浏览",
+    "dragDropFileType": "支持 .xlsx 和 .xls 文件"
+  }
+}

@@ -12,10 +12,12 @@
     import {RoutePriceTemplate} from "./RoutePriceTemplate";
 
     // Schema-based classes
-    import SchemaUploadTemplate from "$lib/SchemaUploadTemplate";
-    import SchemaEncodingTemplate from "$lib/SchemaEncodingTemplate";
+    import SchemaUploadTemplate from "$lib/schema/SchemaUploadTemplate";
+    import SchemaEncodingTemplate from "$lib/schema/SchemaEncodingTemplate";
     import employeeSheetSchema from "./EmployeeSheetSchema";
     import productSheetSchema from "./ProductSheetSchema";
+    import EmployeeSchemaTemplate from "./EmployeeSchemaTemplate";
+    import ProductSchemaTemplate from "./ProductSchemaTemplate";
 
     const uploadData = () => {
         let template = new RoutePriceTemplate([45, 100, 300, 500, 1000]);
@@ -50,60 +52,9 @@
         });
     }
 
-    // Test Schema-based templates directly (without inheritance)
-    const testSchemaUploadDirect = () => {
-        const template = new SchemaUploadTemplate(
-            employeeSheetSchema,
-            async (rows) => {
-                console.log("直接使用 SchemaUploadTemplate 上传", rows);
-                return new Promise((resolve) => {
-                    const list = rows.map(() => ({}));
-                    for (let i = 0; i < rows.length; i++) {
-                        const code = Math.round(Math.random() * 1000);
-                        if (code > 800) {
-                            list[i].error = code;
-                        }
-                    }
-                    setTimeout(() => resolve(list), 1000);
-                });
-            }
-        );
-        window.Dialog.showModal(FileUploadWizard, {
-            template,
-            width: "1240px",
-            title: 'Schema上传 (直接使用)'
-        });
-    }
-
-    const testSchemaEncodingDirect = () => {
-        const template = new SchemaEncodingTemplate(
-            productSheetSchema,
-            // encodeFunction
-            async (rows) => {
-                return new Promise((resolve) => {
-                    const list = rows.map(item => {
-                        const tmp = JSON.parse(JSON.stringify(item));
-                        if (Math.random() > 0.1) {
-                            tmp.code = ((new Date()).getTime() * 10000 + Math.floor(Math.random() * 10000)).toString(36);
-                        }
-                        return tmp;
-                    });
-                    setTimeout(() => resolve(list), 1000);
-                });
-            },
-            // validateFunction
-            (row) => ({ valid: true })
-        );
-        window.Dialog.showModal(EncodingWizard, {
-            template,
-            width: "1240px",
-            title: 'Schema编码 (直接使用)',
-            confirmCallback: (list: any) => {
-                console.log('解析数据', list);
-                return true;
-            }
-        });
-    }
+    // Note: Direct instantiation is no longer supported.
+    // SchemaUploadTemplate and SchemaEncodingTemplate are now abstract classes.
+    // Please use inheritance (see EmployeeSchemaTemplate and ProductSchemaTemplate).
 
     onMount(async () => {
 
@@ -130,13 +81,10 @@
         </div>
 
         <div>
-            <h3>Schema模板测试（直接使用）</h3>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <Button label="Schema上传 (直接)" type="warning" onclick={testSchemaUploadDirect}/>
-                <Button label="Schema编码 (直接)" type="warning" onclick={testSchemaEncodingDirect}/>
-            </div>
-            <p style="color: #666; font-size: 12px; margin-top: 5px;">
-                无需继承类，直接通过构造函数传入处理函数
+            <h3>Schema模板说明</h3>
+            <p style="color: #666; font-size: 14px; margin-top: 10px; line-height: 1.6;">
+                SchemaUploadTemplate 和 SchemaEncodingTemplate 现在是抽象类，需要通过继承来实现。
+                请参考 EmployeeSchemaTemplate 和 ProductSchemaTemplate 的实现方式。
             </p>
         </div>
     </div>

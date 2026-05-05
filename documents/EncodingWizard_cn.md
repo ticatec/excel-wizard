@@ -1,90 +1,369 @@
+# EncodingWizard 组件
 
-# Excel Encoding Wizard 组件
-
-一个基于 Svelte 的对话框组件，用于解析 Excel 文件、通过服务器端接口验证/补全数据，并显示验证结果，结合 `BaseEncodingTemplate` 实现数据处理功能。
+一个基于 Svelte 的对话框组件，用于解析 Excel 文件并将字段映射到本地数据结构。非常适合客户端数据导入场景。
 
 ## 概述
 
-该组件提供了一个交互式的对话框界面，允许用户选择 Excel 文件、解析文件内容、通过服务器端接口验证和补全数据、显示数据表格，并在数据有效时提供确认操作。组件支持国际化、动态按钮操作，适用于需要验证和补全 Excel 数据的场景。
+**EncodingWizard** 专为**纯客户端 Excel 数据处理**而设计，无需服务器交互。它提供了一个交互式界面，用于：
+
+- 📂 读取本地 Excel 文件
+- 🔄 将 Excel 列映射到数据字段
+- ✅ 使用自定义规则验证数据
+- 📝 在处理前预览数据
+- ✨ 返回处理后的数据用于表单填充或本地使用
+
+## 使用场景
+
+**适用于需要以下功能的场景：**
+- 从 Excel 文件导入配置
+- 批量填充表单字段
+- 本地数据报表生成
+- 离线数据处理
+- 从模板读取初始化数据
+
+**❌ 不适用于：**
+- 服务器端数据上传（请改用 [FileUploadWizard](./FileUploadWizard_cn.md)）
+- 数据库批量导入（请改用 [FileUploadWizard](./FileUploadWizard_cn.md)）
+
+**对比：**
+
+| 特性 | EncodingWizard | FileUploadWizard |
+|------|----------------|------------------|
+| **主要用途** | 本地数据导入 | 服务器上传 |
+| **服务器交互** | **不需要** | 必需 |
+| **数据流** | Excel → 处理 → 表单/本地状态 | Excel → 验证 → 服务器 |
+| **典型场景** | 从 Excel 填充表单 | 批量上传到数据库 |
 
 ## 使用方法
 
-将组件嵌入 Svelte 应用，并传递必要的属性。以下是一个示例：
+### Schema 方式（推荐）
 
-1. 实现数据模版，定义和excel文件匹配的字段。[BaseEncodingTemplate](./BaseEncodingTemplate_cn.md)
-2. 打开对话框，加载本地的excel文件，将触发解析和调用服务api验证数据，验证通过后，显示确认按钮。点击确认按钮会通过回传函数返回数据集。
+使用 `SchemaEncodingTemplate` 实现简化的、无需继承的实现：
 
 ```typescript
-<script lang="ts">
-    import EncodingDialog from '@ticatec/batch-data-uploader/EncodingDialog.svelte';
-    import type { DataColumn } from '@ticatec/batch-data-uploader/DataColumn';
-    import MyEncodingTemplate from './MyEncodingTemplate'; // 继承自 BaseEncodingTemplate
+import {EncodingWizard} from '@ticatec/excel-wizard';
+import {SchemaEncodingTemplate} from '@ticatec/excel-wizard';
+import type {SheetSchema} from '@ticatec/excel-wizard';
+import productSheetSchema from './productSheetSchema';
 
-    const template = new MyEncodingTemplate();
-
-    function handleClose() {
-        console.log('Dialog closed');
+// 创建编码模板 - 无需继承！
+class ProductEncodingTemplate extends SchemaEncodingTemplate {
+    constructor() {
+        super(productSheetSchema);
     }
 
-    function handleConfirm(data: any[]) {
-        console.log('Confirmed data:', data);
+    // 实现编码函数（客户端处理）
+    protected getEncodeFunction() {
+        return async (rows) => {
+            // 在本地处理数据 - 无需服务器
+            return rows.map(row => ({
+                ...row,
+                // 添加计算字段
+                total: row.price * row.quantity,
+                processedAt: new Date().toISOString()
+            }));
+        };
     }
-</script>
 
-<ExcelEncodingDialog
-    title="验证 Excel 数据"
-    width="800px"
-    height="600px"
-    {template}
-    closeHandler={handleClose}
-    confirmCallback={handleConfirm}
-/>
+    // 可选：添加验证
+    protected getValidateFunction() {
+        return (row) => {
+            if (!row.barcode) {
+                return {
+                    valid: false,
+                    hint: 'SKU 不能为空'
+                };
+            }
+            return {valid: true};
+        };
+    }
+}
+
+const encodingTemplate = new ProductEncodingTemplate();
+
+// 打开向导
+window.Dialog.showModal(EncodingWizard, {
+    template: encodingTemplate,
+    width: '1240px',
+    title: '从 Excel 导入产品',
+    confirmCallback: (processedData) => {
+        console.log('处理后的数据：', processedData);
+        // 使用数据填充表单、更新本地状态等
+        // 例如：
+        // - 填充表单字段
+        // - 更新本地数据存储
+        // - 生成报表
+        // - 触发本地处理
+        return true;  // 关闭对话框
+    }
+});
 ```
 
-## 组件详情
+### 传统方式（基于继承）
 
-### 属性
+对于高级定制，可以继承 `BaseEncodingTemplate`：
 
-- **title**: `string`
-    - 对话框标题。
-- **width**: `string` (默认: `"800px"`)
-    - 对话框宽度。
-- **height**: `string` (默认: `"600px"`)
-    - 对话框高度。
-- **template**: `BaseEncodingTemplate`
-    - `BaseEncodingTemplate` 实例，用于解析 Excel 文件、验证和补全数据。
-- **confirmCallback**: `any`
-    - 确认按钮点击时调用的回调函数，接收解析后的数据列表（`template.list`）。
+```typescript
+import {EncodingWizard} from '@ticatec/excel-wizard';
+import BaseEncodingTemplate from '@ticatec/excel-wizard/BaseEncodingTemplate';
+import type {DataColumn} from '@ticatec/excel-wizard/DataColumn';
 
-### 按钮操作
+class MyEncodingTemplate extends BaseEncodingTemplate {
+    protected getMetaColumns(): Array<DataColumn> {
+        return [
+            {
+                field: 'name',
+                text: '姓名',
+                width: 150,
+                parser: (value) => String(value).trim()
+            },
+            {
+                field: 'email',
+                text: '邮箱',
+                width: 200
+            }
+        ];
+    }
 
-- **btnChoose**: 选择文件按钮，触发文件输入框以选择 Excel 文件。
-- **btnConfirm**: 确认按钮，仅在数据有效（`template.valid` 为 `true`）时显示，调用 `confirmCallback` 并关闭对话框。
+    protected async encodeData(rows: Array<any>): Promise<Array<any>> {
+        // 在本地处理数据
+        return rows.map(row => ({
+            ...row,
+            processed: true,
+            timestamp: new Date().toISOString()
+        }));
+    }
+}
 
-### 事件处理
+const template = new MyEncodingTemplate();
 
-- **文件选择**：通过隐藏的 `<input type="file">` 元素触发 `parseExcelFile`，解析选中的 Excel 文件并调用 `template.parseExcelFile` 进行验证/补全。
-- **数据验证**：解析完成后检查 `template.valid`，如果数据有效，则添加“确认”按钮。
-- **错误提示**：解析失败时通过 `window.Toast` 显示错误信息，并隐藏加载指示器。
+window.Dialog.showModal(EncodingWizard, {
+    template: template,
+    width: '1240px',
+    title: '导入数据',
+    confirmCallback: (data) => {
+        console.log('导入的数据：', data);
+        return true;
+    }
+});
+```
 
-## 类型
+## 组件属性
 
-- **DataColumn**: 自定义接口，定义列元数据（继承自 `@ticatec/uniface-element/DataTable` 的 `TableColumn`）。
-- **ButtonAction** / **ButtonActions**: 来自 `@ticatec/uniface-element/ActionBar`，定义按钮操作。
-- **IndicatorColumn**: 来自 `@ticatec/uniface-element/DataTable`，定义行号列。
+### 必需属性
 
-## 依赖组件
+- **template**: `SchemaEncodingTemplate | BaseEncodingTemplate`
+  - 编码模板实例，用于解析 Excel 文件和处理数据
+  - 定义列映射和数据转换逻辑
 
-- **Dialog**: 来自 `@ticatec/uniface-element/Dialog`，提供对话框容器。
-- **DataTable**: 来自 `@ticatec/uniface-element/DataTable`，显示数据表格。
-- **Box**: 来自 `@ticatec/uniface-element/Box`，提供带边框的容器样式。
-- **getI18nText**: 来自 `@ticatec/i18n`，用于国际化文本。
+### 可选属性
+
+- **title**: `string`（默认：本地化的"导入数据"）
+  - 对话框标题
+- **width**: `string`（默认：`"1240px"`）
+  - 对话框宽度
+- **confirmCallback**: `(data: any[]) => boolean | Promise<boolean>`
+  - 用户确认导入时调用的回调函数
+  - 接收处理后的数据数组
+  - 返回 `true` 关闭对话框，返回 `false` 保持打开
+
+## 工作流程
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  1. 用户打开 EncodingWizard 对话框                      │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│  2. 用户选择本地 Excel 文件 (.xlsx/.xls)               │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│  3. 客户端解析：                                        │
+│     - 在本地读取 Excel 文件（无需服务器）              │
+│     - 根据 schema 映射列                               │
+│     - 从单元格提取数据                                 │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│  4. 数据验证（可选）：                                  │
+│     - 应用自定义验证规则                               │
+│     - 在数据表格中显示错误                             │
+│     - 高亮显示无效行                                   │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│  5. 数据转换（encodeData）：                            │
+│     - 在本地处理数据                                   │
+│     - 添加计算字段                                     │
+│     - 根据需要格式化数据                               │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│  6. 预览：                                              │
+│     - 在表格中显示处理后的数据                         │
+│     - 用户在确认前查看                                 │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│  7. 用户点击确认：                                      │
+│     - 调用 confirmCallback(data)                       │
+│     - 将数据返回给调用代码                             │
+│     - 用于表单填充等                                   │
+└─────────────────────────────────────────────────────────┘
+```
+
+## 示例场景
+
+### 1. 从 Excel 导入配置
+
+```typescript
+class ConfigEncodingTemplate extends SchemaEncodingTemplate {
+    constructor() {
+        super(configSheetSchema);
+    }
+
+    protected getEncodeFunction() {
+        return async (rows) => {
+            // 将 Excel 行转换为配置对象
+            const config = {};
+            rows.forEach(row => {
+                config[row.key] = row.value;
+            });
+            return [config];  // 为一致性返回数组
+        };
+    }
+}
+
+window.Dialog.showModal(EncodingWizard, {
+    template: new ConfigEncodingTemplate(),
+    title: '导入配置',
+    confirmCallback: ([config]) => {
+        // 将配置应用到应用
+        Object.assign(appConfig, config);
+        return true;
+    }
+});
+```
+
+### 2. 批量填充表单字段
+
+```typescript
+class FormFillEncodingTemplate extends SchemaEncodingTemplate {
+    constructor() {
+        super(formSchema);
+    }
+
+    protected getEncodeFunction() {
+        return async (rows) => {
+            // 处理行以填充表单
+            return rows.map(row => ({
+                ...row,
+                // 验证和转换
+                isValid: validateField(row),
+                formatted: formatField(row)
+            }));
+        };
+    }
+}
+
+window.Dialog.showModal(EncodingWizard, {
+    template: new FormFillEncodingTemplate(),
+    title: '导入表单数据',
+    confirmCallback: (formData) => {
+        // 填充表单字段
+        formData.forEach((data, index) => {
+            formFields[index].value = data.value;
+        });
+        return true;
+    }
+});
+```
+
+### 3. 本地数据报表生成
+
+```typescript
+class ReportEncodingTemplate extends SchemaEncodingTemplate {
+    constructor() {
+        super(reportSchema);
+    }
+
+    protected getEncodeFunction() {
+        return async (rows) => {
+            // 为报表添加计算
+            return rows.map(row => ({
+                ...row,
+                total: row.quantity * row.unitPrice,
+                tax: row.quantity * row.unitPrice * 0.1,
+                grandTotal: row.quantity * row.unitPrice * 1.1
+            }));
+        };
+    }
+}
+
+window.Dialog.showModal(EncodingWizard, {
+    template: new ReportEncodingTemplate(),
+    title: '生成报表',
+    confirmCallback: (reportData) => {
+        // 在本地生成报表
+        generateReport(reportData);
+        return true;
+    }
+});
+```
+
+## 验证
+
+通过重写 `getValidateFunction()` 实现自定义验证逻辑：
+
+```typescript
+protected getValidateFunction() {
+    return (row) => {
+        // 自定义验证规则
+        if (!row.name || row.name.trim() === '') {
+            return {
+                valid: false,
+                hint: '姓名不能为空'
+            };
+        }
+
+        if (row.email && !isValidEmail(row.email)) {
+            return {
+                valid: false,
+                hint: '邮箱格式无效'
+            };
+        }
+
+        if (row.age && (row.age < 18 || row.age > 65)) {
+            return {
+                valid: false,
+                hint: '年龄必须在 18 到 65 之间'
+            };
+        }
+
+        return {valid: true};
+    };
+}
+```
 
 ## 注意事项
 
-- 确保 `BaseEncodingTemplate` 已正确实现 `isDataValid`、`encodeData` 方法和 `valid` 属性，以支持数据验证和补全。
-- 文件输入框仅接受 `.xls` 和 `.xlsx` 格式的文件。
-- 解析过程中会显示加载指示器（`window.Indicator`），失败时通过 `window.Toast` 显示错误提示。
-- 确认按钮仅在 `template.valid` 为 `true` 时显示，确保只有有效数据可以提交。
-- 依赖 `window.Indicator` 和 `window.Toast` 进行 UI 提示，需确保这些全局对象已定义。
-- `confirmCallback` 接收解析后的完整数据列表，适合用于后续处理或提交。
+- ✅ **纯客户端处理** - 无需服务器交互
+- ✅ **灵活的数据转换** - 根据需要在本地处理数据
+- ✅ **自定义验证** - 添加自己的验证规则
+- ✅ **确认前预览** - 用户可以在处理前查看数据
+- ✅ **国际化支持** - 支持多种语言
+- ⚠️ **文件格式** - 仅接受 `.xls` 和 `.xlsx` 文件
+- ⚠️ **全局依赖** - 需要 `window.Indicator`、`window.Toast` 和 `window.Dialog`
+
+## 相关组件
+
+- [FileUploadWizard](./FileUploadWizard_cn.md) - 用于服务器端批量上传
+- [SchemaHelper](../src/lib/schema/SchemaHelper.ts) - Schema 工具类
+- [BaseEncodingTemplate](./BaseEncodingTemplate_cn.md) - 传统基类
